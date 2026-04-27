@@ -1,1089 +1,642 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
-  AlertTriangle,
-  CheckCircle2,
-  Clock3,
-  Inbox,
-  Loader2,
+  ArrowRight,
   Package,
-  PhoneCall,
-  Plus,
-  RefreshCw,
   ShoppingCart,
+  Users,
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
+  Clock,
+  AlertTriangle,
+  Plus,
+  Edit2,
   Trash2,
-  UserRound,
-  Wallet,
+  Eye,
+  EyeOff,
+  RefreshCw,
+  Search,
+  Filter,
+  BarChart3,
+  Settings,
+  LogOut,
+  Store,
+  CreditCard,
+  Truck,
+  Star,
+  CheckCircle,
+  XCircle,
+  Zap,
+  Brain,
+  Target
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { formatLabel, formatPrice } from '../utils/productPresentation';
-
-const orderStatusOptions = ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'];
-const paymentStatusOptions = ['pending', 'paid', 'failed', 'refunded'];
-const productCategories = ['gin', 'vodka', 'rum', 'whiskey', 'liqueur', 'other'];
-const contactStatusOptions = ['new', 'in_progress', 'resolved'];
-
-const createEmptyProductForm = () => ({
-  name: '',
-  shortDescription: '',
-  description: '',
-  category: 'gin',
-  price: '',
-  wholesalePrice: '',
-  abv: '40',
-  volume: '750',
-  stock: '0',
-  isFeatured: false,
-  imageUrl: '',
-  imageAlt: '',
-  ingredients: '',
-  tastingNotes: '',
-});
-
-const parseListField = (value = '') =>
-  String(value || '')
-    .split(/,|\n/)
-    .map((item) => item.trim())
-    .filter(Boolean);
-
-const mapProductToForm = (product = {}) => ({
-  name: product.name || '',
-  shortDescription: product.shortDescription || '',
-  description: product.description || '',
-  category: product.category || 'gin',
-  price: product.price === 0 ? '0' : String(product.price || ''),
-  wholesalePrice:
-    product.wholesalePrice === 0 || product.wholesalePrice
-      ? String(product.wholesalePrice)
-      : '',
-  abv: product.abv === 0 ? '0' : String(product.abv || ''),
-  volume: product.volume === 0 ? '0' : String(product.volume || ''),
-  stock: product.stock === 0 ? '0' : String(product.stock || ''),
-  isFeatured: Boolean(product.isFeatured),
-  imageUrl: product.images?.[0]?.url || '',
-  imageAlt: product.images?.[0]?.alt || '',
-  ingredients: Array.isArray(product.ingredients) ? product.ingredients.join(', ') : '',
-  tastingNotes: Array.isArray(product.tastingNotes) ? product.tastingNotes.join(', ') : '',
-});
-
-const buildProductPayload = (form = {}) => {
-  const name = String(form.name || '').trim();
-  const shortDescription = String(form.shortDescription || '').trim();
-  const description = String(form.description || '').trim();
-  const category = String(form.category || '').trim().toLowerCase();
-  const price = Number(form.price);
-  const abv = Number(form.abv);
-  const volume = Number(form.volume);
-  const stock = Number(form.stock);
-  const wholesalePriceValue = String(form.wholesalePrice || '').trim();
-  const wholesalePrice =
-    wholesalePriceValue === '' ? null : Number(wholesalePriceValue);
-  const imageUrl = String(form.imageUrl || '').trim();
-  const imageAlt = String(form.imageAlt || '').trim();
-  const ingredients = parseListField(form.ingredients);
-  const tastingNotes = parseListField(form.tastingNotes);
-
-  if (!name || !shortDescription || !description) {
-    throw new Error('Name, short description, and full description are required.');
-  }
-
-  if (!productCategories.includes(category)) {
-    throw new Error('Please choose a valid category.');
-  }
-
-  if (!Number.isFinite(price) || price < 0) {
-    throw new Error('Price must be a valid non-negative number.');
-  }
-
-  if (!Number.isFinite(abv) || abv < 0) {
-    throw new Error('ABV must be a valid non-negative number.');
-  }
-
-  if (!Number.isFinite(volume) || volume <= 0) {
-    throw new Error('Volume must be greater than zero.');
-  }
-
-  if (!Number.isFinite(stock) || stock < 0) {
-    throw new Error('Stock must be a valid non-negative number.');
-  }
-
-  if (wholesalePrice !== null && (!Number.isFinite(wholesalePrice) || wholesalePrice < 0)) {
-    throw new Error('Wholesale price must be blank or a valid non-negative number.');
-  }
-
-  const payload = {
-    name,
-    shortDescription,
-    description,
-    category,
-    price,
-    abv,
-    volume,
-    stock,
-    isFeatured: Boolean(form.isFeatured),
-    ingredients,
-    tastingNotes,
-    origin: {
-      distillery: 'Muwas Distilling',
-      location: 'Uganda',
-    },
-  };
-
-  if (wholesalePrice !== null) {
-    payload.wholesalePrice = wholesalePrice;
-  }
-
-  if (imageUrl) {
-    payload.images = [
-      {
-        url: imageUrl,
-        alt: imageAlt || `${name} bottle`,
-      },
-    ];
-  } else {
-    payload.images = [];
-  }
-
-  return payload;
-};
-
-const getNoticeType = (type = 'info') => {
-  if (type === 'success' || type === 'error' || type === 'warning') {
-    return type;
-  }
-
-  return 'info';
-};
+import Header from '../components/Header';
+import Footer from '../components/Footer';
 
 const AdminDashboard = () => {
   const { api, user } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [orders, setOrders] = useState([]);
   const [products, setProducts] = useState([]);
-  const [contacts, setContacts] = useState([]);
-  const [notice, setNotice] = useState({ type: '', text: '' });
-  const [editingProductId, setEditingProductId] = useState('');
-  const [productForm, setProductForm] = useState(createEmptyProductForm());
-  const [orderDrafts, setOrderDrafts] = useState({});
-  const [contactDrafts, setContactDrafts] = useState({});
-  const [productSubmitting, setProductSubmitting] = useState(false);
-  const [productDeletingId, setProductDeletingId] = useState('');
-  const [orderSavingId, setOrderSavingId] = useState('');
-  const [orderDeletingId, setOrderDeletingId] = useState('');
-  const [contactSavingId, setContactSavingId] = useState('');
-  const [contactDeletingId, setContactDeletingId] = useState('');
+  const [users, setUsers] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showAddProduct, setShowAddProduct] = useState(false);
+  const [editingProduct, setEditingProduct] = useState(null);
+  const [productForm, setProductForm] = useState({
+    name: '',
+    shortDescription: '',
+    description: '',
+    category: 'gin',
+    price: '',
+    wholesalePrice: '',
+    stock: '',
+    isFeatured: false,
+    images: []
+  });
 
-  const pushNotice = (text, type = 'info') => {
-    if (!text) {
-      setNotice({ type: '', text: '' });
-      return;
-    }
+  // Mock statistics
+  const [stats, setStats] = useState({
+    totalOrders: 156,
+    totalRevenue: 2450000,
+    totalProducts: 48,
+    totalUsers: 1234,
+    pendingOrders: 12,
+    lowStockProducts: 5
+  });
 
-    setNotice({
-      type: getNoticeType(type),
-      text,
-    });
-  };
-
-  const primeOrderDrafts = (nextOrders = []) => {
-    const nextDrafts = {};
-
-    nextOrders.forEach((order) => {
-      nextDrafts[order._id] = {
-        status: order.status || 'pending',
-        paymentStatus: order.paymentStatus || 'pending',
-        trackingNumber: order.trackingNumber || '',
-      };
-    });
-
-    setOrderDrafts(nextDrafts);
-  };
-
-  const primeContactDrafts = (nextContacts = []) => {
-    const nextDrafts = {};
-
-    nextContacts.forEach((contact) => {
-      nextDrafts[contact._id] = {
-        status: contact.status || 'new',
-        adminNotes: contact.adminNotes || '',
-      };
-    });
-
-    setContactDrafts(nextDrafts);
-  };
-
-  const fetchDashboardData = async ({ initial = false, silent = false } = {}) => {
-    if (initial) {
-      setLoading(true);
-    } else {
-      setRefreshing(true);
-    }
-
-    try {
-      const [ordersResult, productsResult, contactsResult] = await Promise.allSettled([
-        api.get('/orders?limit=200'),
-        api.get('/products?limit=200'),
-        api.get('/contact?limit=200'),
-      ]);
-
-      const nextOrders =
-        ordersResult.status === 'fulfilled'
-          ? ordersResult.value?.data?.orders || []
-          : [];
-      const nextProducts =
-        productsResult.status === 'fulfilled'
-          ? productsResult.value?.data?.products || []
-          : [];
-      const nextContacts =
-        contactsResult.status === 'fulfilled'
-          ? contactsResult.value?.data?.contacts || []
-          : [];
-
-      const failedSegments = [];
-      if (ordersResult.status === 'rejected') failedSegments.push('orders');
-      if (productsResult.status === 'rejected') failedSegments.push('products');
-      if (contactsResult.status === 'rejected') failedSegments.push('contacts');
-
-      setOrders(nextOrders);
-      setProducts(nextProducts);
-      setContacts(nextContacts);
-      primeOrderDrafts(nextOrders);
-      primeContactDrafts(nextContacts);
-
-      if (!silent) {
-        if (failedSegments.length > 0) {
-          pushNotice(`Some data failed to load: ${failedSegments.join(', ')}.`, 'warning');
-        } else {
-          pushNotice('Dashboard synced successfully.', 'success');
-        }
-      }
-    } catch (error) {
-      console.error('Dashboard fetch error:', error);
-      pushNotice('Failed to load dashboard data.', 'error');
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
+  // Check if user is superadmin
+  const isSuperAdmin = user?.role === 'admin' || user?.role === 'superadmin';
 
   useEffect(() => {
-    fetchDashboardData({ initial: true, silent: true });
-  }, []);
+    if (!isSuperAdmin) {
+      return;
+    }
+    
+    const fetchDashboardData = async () => {
+      setLoading(true);
+      try {
+        const [ordersRes, productsRes, usersRes] = await Promise.allSettled([
+          api.get('/orders'),
+          api.get('/products'),
+          api.get('/auth/users')
+        ]);
 
-  const totalRevenue = useMemo(
-    () =>
-      orders
-        .filter((order) => order.paymentStatus === 'paid')
-        .reduce((sum, order) => sum + Number(order.totalAmount || 0), 0),
-    [orders]
-  );
+        if (ordersRes.status === 'fulfilled') {
+          setOrders(ordersRes.value.data.orders || []);
+        }
+        if (productsRes.status === 'fulfilled') {
+          setProducts(productsRes.value.data.products || []);
+        }
+        if (usersRes.status === 'fulfilled') {
+          setUsers(usersRes.value.data.users || []);
+        }
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const pendingOrdersCount = useMemo(
-    () => orders.filter((order) => order.status === 'pending').length,
-    [orders]
-  );
+    fetchDashboardData();
+  }, [api, isSuperAdmin]);
 
-  const lowStockProductsCount = useMemo(
-    () => products.filter((product) => Number(product.stock || 0) <= 10).length,
-    [products]
-  );
-
-  const unresolvedContactsCount = useMemo(
-    () => contacts.filter((contact) => contact.status !== 'resolved').length,
-    [contacts]
-  );
-
-  const handleProductFieldChange = (event) => {
-    const { name, value, type, checked } = event.target;
-
-    setProductForm((current) => ({
-      ...current,
-      [name]: type === 'checkbox' ? checked : value,
-    }));
-  };
-
-  const handleOrderDraftChange = (orderId, field, value) => {
-    setOrderDrafts((current) => ({
-      ...current,
-      [orderId]: {
-        ...current[orderId],
-        [field]: value,
-      },
-    }));
-  };
-
-  const handleContactDraftChange = (contactId, field, value) => {
-    setContactDrafts((current) => ({
-      ...current,
-      [contactId]: {
-        ...current[contactId],
-        [field]: value,
-      },
-    }));
-  };
-
-  const resetProductForm = () => {
-    setEditingProductId('');
-    setProductForm(createEmptyProductForm());
+  const handleAddProduct = async () => {
+    try {
+      const response = await api.post('/products', productForm);
+      setProducts([...products, response.data.product]);
+      setShowAddProduct(false);
+      setProductForm({
+        name: '',
+        shortDescription: '',
+        description: '',
+        category: 'gin',
+        price: '',
+        wholesalePrice: '',
+        stock: '',
+        isFeatured: false,
+        images: []
+      });
+    } catch (error) {
+      console.error('Error adding product:', error);
+    }
   };
 
   const handleEditProduct = (product) => {
-    setEditingProductId(product._id);
-    setProductForm(mapProductToForm(product));
-    setActiveTab('products');
+    setEditingProduct(product);
+    setProductForm({
+      name: product.name,
+      shortDescription: product.shortDescription,
+      description: product.description,
+      category: product.category,
+      price: product.price,
+      wholesalePrice: product.wholesalePrice,
+      stock: product.stock,
+      isFeatured: product.isFeatured,
+      images: product.images || []
+    });
   };
 
-  const handleProductSubmit = async (event) => {
-    event.preventDefault();
-    setProductSubmitting(true);
-    pushNotice('', 'info');
-
+  const handleUpdateProduct = async () => {
     try {
-      const payload = buildProductPayload(productForm);
-
-      if (editingProductId) {
-        await api.put(`/products/${editingProductId}`, payload);
-        pushNotice('Product updated successfully.', 'success');
-      } else {
-        await api.post('/products', payload);
-        pushNotice('Product created successfully.', 'success');
-      }
-
-      resetProductForm();
-      await fetchDashboardData({ silent: true });
+      const response = await api.put(`/products/${editingProduct._id}`, productForm);
+      setProducts(products.map(p => p._id === editingProduct._id ? response.data.product : p));
+      setEditingProduct(null);
+      setProductForm({
+        name: '',
+        shortDescription: '',
+        description: '',
+        category: 'gin',
+        price: '',
+        wholesalePrice: '',
+        stock: '',
+        isFeatured: false,
+        images: []
+      });
     } catch (error) {
-      const message = error.response?.data?.message || error.message || 'Failed to save product.';
-      pushNotice(message, 'error');
-    } finally {
-      setProductSubmitting(false);
+      console.error('Error updating product:', error);
     }
   };
 
-  const handleDeleteProduct = async (productId, productName) => {
-    const confirmed = window.confirm(`Delete "${productName}" from active catalog?`);
-    if (!confirmed) {
-      return;
-    }
-
-    setProductDeletingId(productId);
-
+  const handleDeleteProduct = async (productId) => {
+    if (!confirm('Are you sure you want to delete this product?')) return;
+    
     try {
       await api.delete(`/products/${productId}`);
-      if (editingProductId === productId) {
-        resetProductForm();
-      }
-      pushNotice('Product deleted successfully.', 'success');
-      await fetchDashboardData({ silent: true });
+      setProducts(products.filter(p => p._id !== productId));
     } catch (error) {
-      const message = error.response?.data?.message || 'Failed to delete product.';
-      pushNotice(message, 'error');
-    } finally {
-      setProductDeletingId('');
+      console.error('Error deleting product:', error);
     }
   };
 
-  const handleSaveOrder = async (orderId) => {
-    const draft = orderDrafts[orderId];
-    if (!draft) {
-      return;
-    }
-
-    setOrderSavingId(orderId);
-
+  const handleUpdateOrderStatus = async (orderId, status) => {
     try {
-      await api.put(`/orders/${orderId}/status`, {
-        status: draft.status,
-        paymentStatus: draft.paymentStatus,
-        trackingNumber: draft.trackingNumber,
-      });
-      pushNotice('Order updated successfully.', 'success');
-      await fetchDashboardData({ silent: true });
+      const response = await api.patch(`/orders/${orderId}`, { status });
+      setOrders(orders.map(o => o._id === orderId ? response.data.order : o));
     } catch (error) {
-      const message = error.response?.data?.message || 'Failed to update order.';
-      pushNotice(message, 'error');
-    } finally {
-      setOrderSavingId('');
+      console.error('Error updating order:', error);
     }
   };
 
-  const handleDeleteOrder = async (orderId, orderNumber) => {
-    const confirmed = window.confirm(
-      `Delete ${orderNumber || 'this order'}? This action cannot be undone.`
+  // Redirect if not superadmin
+  if (!isSuperAdmin) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-50 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
+        <div className="text-center">
+          <AlertTriangle className="w-16 h-16 text-orange-600 mx-auto mb-4" />
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Access Denied</h1>
+          <p className="text-gray-600 dark:text-gray-400">You don't have permission to access this page.</p>
+          <Link to="/" className="mt-4 inline-flex items-center px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors">
+            Go Home
+          </Link>
+        </div>
+      </div>
     );
-    if (!confirmed) {
-      return;
-    }
-
-    setOrderDeletingId(orderId);
-
-    try {
-      await api.delete(`/orders/${orderId}`);
-      pushNotice('Order deleted successfully.', 'success');
-      await fetchDashboardData({ silent: true });
-    } catch (error) {
-      const message = error.response?.data?.message || 'Failed to delete order.';
-      pushNotice(message, 'error');
-    } finally {
-      setOrderDeletingId('');
-    }
-  };
-
-  const handleSaveContact = async (contactId) => {
-    const draft = contactDrafts[contactId];
-    if (!draft) {
-      return;
-    }
-
-    setContactSavingId(contactId);
-
-    try {
-      await api.put(`/contact/${contactId}`, {
-        status: draft.status,
-        adminNotes: draft.adminNotes,
-      });
-      pushNotice('Contact request updated successfully.', 'success');
-      await fetchDashboardData({ silent: true });
-    } catch (error) {
-      const message = error.response?.data?.message || 'Failed to update contact request.';
-      pushNotice(message, 'error');
-    } finally {
-      setContactSavingId('');
-    }
-  };
-
-  const handleDeleteContact = async (contactId) => {
-    const confirmed = window.confirm('Delete this contact request?');
-    if (!confirmed) {
-      return;
-    }
-
-    setContactDeletingId(contactId);
-
-    try {
-      await api.delete(`/contact/${contactId}`);
-      pushNotice('Contact request deleted successfully.', 'success');
-      await fetchDashboardData({ silent: true });
-    } catch (error) {
-      const message = error.response?.data?.message || 'Failed to delete contact request.';
-      pushNotice(message, 'error');
-    } finally {
-      setContactDeletingId('');
-    }
-  };
+  }
 
   if (loading) {
     return (
-      <div className="admin-hub admin-hub--loading">
-        <Loader2 className="admin-hub__loader" />
+      <div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-50 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
+        <div className="text-center">
+          <RefreshCw className="w-12 h-12 animate-spin text-orange-600 mx-auto mb-4" />
+          <p className="text-gray-600 dark:text-gray-400">Loading Admin Dashboard...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="admin-hub">
-      <div className="admin-hub__inner">
-        <section className="admin-hub__hero">
-          <div>
-            <p className="admin-hub__eyebrow">Admin Control Center</p>
-            <h1>Welcome back, {user?.name || 'Admin'}.</h1>
-            <span>Manage catalog, orders, and contact requests from one place.</span>
+    <div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-50 dark:from-gray-900 dark:to-gray-800">
+      <Header siteProducts={[]} theme="light" />
+      
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Welcome Header */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+                Welcome back, {user?.name || 'Admin'}
+              </h1>
+              <p className="text-gray-600 dark:text-gray-400">
+                Manage your Muwas distillery operations
+              </p>
+            </div>
+            <div className="flex items-center space-x-4">
+              <Link
+                to="/products"
+                className="muwas-outline-button"
+              >
+                <Store className="w-4 h-4" />
+                View Store
+              </Link>
+              <button className="muwas-outline-button">
+                <LogOut className="w-4 h-4" />
+                Logout
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Stats Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="w-12 h-12 bg-orange-100 dark:bg-orange-900/30 rounded-lg flex items-center justify-center">
+                <ShoppingCart className="w-6 h-6 text-orange-600 dark:text-orange-400" />
+              </div>
+              <div className="flex items-center text-green-600">
+                <TrendingUp className="w-4 h-4" />
+                <span className="text-sm font-medium">12%</span>
+              </div>
+            </div>
+            <h3 className="text-2xl font-bold text-gray-900 dark:text-white">{stats.totalOrders}</h3>
+            <p className="text-gray-600 dark:text-gray-400 text-sm">Total Orders</p>
           </div>
 
-          <button
-            type="button"
-            onClick={() => fetchDashboardData({ silent: false })}
-            className="admin-hub__refresh"
-            disabled={refreshing}
-          >
-            {refreshing ? (
-              <>
-                <Loader2 size={16} className="is-spin" />
-                Syncing...
-              </>
-            ) : (
-              <>
-                <RefreshCw size={16} />
-                Refresh data
-              </>
-            )}
-          </button>
-        </section>
-
-        {notice.text && (
-          <div className={`admin-hub__notice is-${notice.type || 'info'}`}>
-            {notice.type === 'success' && <CheckCircle2 size={17} />}
-            {notice.type === 'warning' && <AlertTriangle size={17} />}
-            {notice.type === 'error' && <AlertTriangle size={17} />}
-            {!notice.type && <Clock3 size={17} />}
-            <span>{notice.text}</span>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center">
+                <DollarSign className="w-6 h-6 text-green-600 dark:text-green-400" />
+              </div>
+              <div className="flex items-center text-green-600">
+                <TrendingUp className="w-4 h-4" />
+                <span className="text-sm font-medium">8%</span>
+              </div>
+            </div>
+            <h3 className="text-2xl font-bold text-gray-900 dark:text-white">UGX {stats.totalRevenue.toLocaleString()}</h3>
+            <p className="text-gray-600 dark:text-gray-400 text-sm">Total Revenue</p>
           </div>
-        )}
 
-        <section className="admin-hub__metrics">
-          <article>
-            <span>
-              <ShoppingCart size={18} />
-              Total orders
-            </span>
-            <strong>{orders.length}</strong>
-            <small>{pendingOrdersCount} awaiting processing</small>
-          </article>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
+                <Package className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div className="flex items-center text-red-600">
+                <TrendingDown className="w-4 h-4" />
+                <span className="text-sm font-medium">3%</span>
+              </div>
+            </div>
+            <h3 className="text-2xl font-bold text-gray-900 dark:text-white">{stats.totalProducts}</h3>
+            <p className="text-gray-600 dark:text-gray-400 text-sm">Products</p>
+          </div>
 
-          <article>
-            <span>
-              <Wallet size={18} />
-              Revenue
-            </span>
-            <strong>{formatPrice(totalRevenue)}</strong>
-            <small>Paid orders only</small>
-          </article>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center">
+                <Users className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+              </div>
+              <div className="flex items-center text-green-600">
+                <TrendingUp className="w-4 h-4" />
+                <span className="text-sm font-medium">15%</span>
+              </div>
+            </div>
+            <h3 className="text-2xl font-bold text-gray-900 dark:text-white">{stats.totalUsers}</h3>
+            <p className="text-gray-600 dark:text-gray-400 text-sm">Customers</p>
+          </div>
+        </div>
 
-          <article>
-            <span>
-              <Package size={18} />
-              Products
-            </span>
-            <strong>{products.length}</strong>
-            <small>{lowStockProductsCount} low stock alerts</small>
-          </article>
+        {/* Navigation Tabs */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 mb-8">
+          <div className="flex space-x-1 p-1">
+            {[
+              { id: 'overview', label: 'Overview', icon: BarChart3 },
+              { id: 'orders', label: 'Orders', icon: ShoppingCart },
+              { id: 'products', label: 'Products', icon: Package },
+              { id: 'customers', label: 'Customers', icon: Users },
+              { id: 'analytics', label: 'Analytics', icon: TrendingUp },
+              { id: 'settings', label: 'Settings', icon: Settings }
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+                  activeTab === tab.id
+                    ? 'bg-orange-600 text-white'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                }`}
+              >
+                <tab.icon className="w-4 h-4" />
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
 
-          <article>
-            <span>
-              <Inbox size={18} />
-              Contact requests
-            </span>
-            <strong>{contacts.length}</strong>
-            <small>{unresolvedContactsCount} unresolved</small>
-          </article>
-        </section>
-
-        <nav className="admin-hub__tabs" aria-label="Dashboard sections">
-          {[
-            { id: 'overview', label: 'Overview' },
-            { id: 'orders', label: 'Orders' },
-            { id: 'products', label: 'Products' },
-            { id: 'contacts', label: 'Contacts' },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setActiveTab(tab.id)}
-              className={activeTab === tab.id ? 'is-active' : ''}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </nav>
-
+        {/* Overview Tab */}
         {activeTab === 'overview' && (
-          <section className="admin-hub__panel-grid">
-            <article className="admin-panel">
-              <div className="admin-panel__heading">
-                <h2>Recent Orders</h2>
-                <span>Latest {Math.min(orders.length, 6)} records</span>
-              </div>
-
-              {orders.length === 0 ? (
-                <p className="admin-empty">No orders available yet.</p>
-              ) : (
-                <div className="admin-list">
-                  {orders.slice(0, 6).map((order) => (
-                    <div key={order._id} className="admin-list__row">
-                      <div>
-                        <strong>{order.orderNumber || 'Order'}</strong>
-                        <small>{order.userId?.name || order.userId?.email || 'Unknown customer'}</small>
-                      </div>
-                      <div>
-                        <strong>{formatPrice(order.totalAmount || 0)}</strong>
-                        <small>{order.status}</small>
-                      </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Recent Orders */}
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">Recent Orders</h2>
+              <div className="space-y-4">
+                {orders.slice(0, 5).map((order) => (
+                  <div key={order._id} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                    <div>
+                      <p className="font-medium text-gray-900 dark:text-white">Order #{order._id?.slice(-8).toUpperCase()}</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">{order.customer?.name || 'Guest'}</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">UGX {order.totalAmount || 0}</p>
                     </div>
-                  ))}
-                </div>
-              )}
-            </article>
-
-            <article className="admin-panel">
-              <div className="admin-panel__heading">
-                <h2>Low Stock</h2>
-                <span>Products at 10 or below</span>
-              </div>
-
-              {products.filter((product) => Number(product.stock || 0) <= 10).length === 0 ? (
-                <p className="admin-empty">No low-stock items right now.</p>
-              ) : (
-                <div className="admin-list">
-                  {products
-                    .filter((product) => Number(product.stock || 0) <= 10)
-                    .slice(0, 6)
-                    .map((product) => (
-                      <div key={product._id} className="admin-list__row">
-                        <div>
-                          <strong>{product.name}</strong>
-                          <small>{formatLabel(product.category || 'other')}</small>
-                        </div>
-                        <div>
-                          <strong>{Number(product.stock || 0)} in stock</strong>
-                          <small>{formatPrice(product.price || 0)}</small>
-                        </div>
-                      </div>
-                    ))}
-                </div>
-              )}
-            </article>
-          </section>
-        )}
-
-        {activeTab === 'orders' && (
-          <section className="admin-panel">
-            <div className="admin-panel__heading">
-              <h2>Order Operations</h2>
-              <span>Update status, payment state, and tracking number</span>
-            </div>
-
-            {orders.length === 0 ? (
-              <p className="admin-empty">No orders found.</p>
-            ) : (
-              <div className="admin-table-wrap">
-                <table className="admin-table">
-                  <thead>
-                    <tr>
-                      <th>Order</th>
-                      <th>Customer</th>
-                      <th>Total</th>
-                      <th>Status</th>
-                      <th>Payment</th>
-                      <th>Tracking</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {orders.map((order) => (
-                      <tr key={order._id}>
-                        <td>
-                          <strong>{order.orderNumber || 'Order'}</strong>
-                          <small>{new Date(order.createdAt).toLocaleString()}</small>
-                        </td>
-                        <td>
-                          <div className="admin-table__stack">
-                            <span>{order.userId?.name || 'Unknown'}</span>
-                            <small>{order.userId?.email || ''}</small>
-                          </div>
-                        </td>
-                        <td>{formatPrice(order.totalAmount || 0)}</td>
-                        <td>
-                          <select
-                            value={orderDrafts[order._id]?.status || 'pending'}
-                            onChange={(event) =>
-                              handleOrderDraftChange(order._id, 'status', event.target.value)
-                            }
-                          >
-                            {orderStatusOptions.map((status) => (
-                              <option key={status} value={status}>
-                                {formatLabel(status)}
-                              </option>
-                            ))}
-                          </select>
-                        </td>
-                        <td>
-                          <select
-                            value={orderDrafts[order._id]?.paymentStatus || 'pending'}
-                            onChange={(event) =>
-                              handleOrderDraftChange(order._id, 'paymentStatus', event.target.value)
-                            }
-                          >
-                            {paymentStatusOptions.map((status) => (
-                              <option key={status} value={status}>
-                                {formatLabel(status)}
-                              </option>
-                            ))}
-                          </select>
-                        </td>
-                        <td>
-                          <input
-                            type="text"
-                            value={orderDrafts[order._id]?.trackingNumber || ''}
-                            onChange={(event) =>
-                              handleOrderDraftChange(order._id, 'trackingNumber', event.target.value)
-                            }
-                            placeholder="Tracking #"
-                          />
-                        </td>
-                        <td>
-                          <div className="admin-table__actions">
-                            <button
-                              type="button"
-                              className="admin-table__action"
-                              onClick={() => handleSaveOrder(order._id)}
-                              disabled={orderSavingId === order._id}
-                            >
-                              {orderSavingId === order._id ? 'Saving...' : 'Save'}
-                            </button>
-
-                            <button
-                              type="button"
-                              className="admin-table__action is-danger"
-                              onClick={() => handleDeleteOrder(order._id, order.orderNumber)}
-                              disabled={orderDeletingId === order._id}
-                            >
-                              {orderDeletingId === order._id ? 'Deleting...' : 'Delete'}
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </section>
-        )}
-
-        {activeTab === 'products' && (
-          <section className="admin-hub__panel-grid admin-hub__panel-grid--products">
-            <article className="admin-panel">
-              <div className="admin-panel__heading">
-                <h2>{editingProductId ? 'Edit Product' : 'Create Product'}</h2>
-                <span>Full product CRUD is enabled</span>
-              </div>
-
-              <form className="admin-form" onSubmit={handleProductSubmit}>
-                <label>
-                  <span>Name</span>
-                  <input
-                    type="text"
-                    name="name"
-                    value={productForm.name}
-                    onChange={handleProductFieldChange}
-                    required
-                  />
-                </label>
-
-                <label>
-                  <span>Short Description</span>
-                  <input
-                    type="text"
-                    name="shortDescription"
-                    value={productForm.shortDescription}
-                    onChange={handleProductFieldChange}
-                    required
-                  />
-                </label>
-
-                <label className="admin-form__full">
-                  <span>Description</span>
-                  <textarea
-                    name="description"
-                    value={productForm.description}
-                    onChange={handleProductFieldChange}
-                    rows={4}
-                    required
-                  />
-                </label>
-
-                <label>
-                  <span>Category</span>
-                  <select
-                    name="category"
-                    value={productForm.category}
-                    onChange={handleProductFieldChange}
-                  >
-                    {productCategories.map((category) => (
-                      <option key={category} value={category}>
-                        {formatLabel(category)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <label>
-                  <span>Price (UGX)</span>
-                  <input
-                    type="number"
-                    name="price"
-                    min="0"
-                    value={productForm.price}
-                    onChange={handleProductFieldChange}
-                    required
-                  />
-                </label>
-
-                <label>
-                  <span>Wholesale Price (UGX)</span>
-                  <input
-                    type="number"
-                    name="wholesalePrice"
-                    min="0"
-                    value={productForm.wholesalePrice}
-                    onChange={handleProductFieldChange}
-                  />
-                </label>
-
-                <label>
-                  <span>ABV</span>
-                  <input
-                    type="number"
-                    name="abv"
-                    min="0"
-                    value={productForm.abv}
-                    onChange={handleProductFieldChange}
-                    required
-                  />
-                </label>
-
-                <label>
-                  <span>Volume (ml)</span>
-                  <input
-                    type="number"
-                    name="volume"
-                    min="1"
-                    value={productForm.volume}
-                    onChange={handleProductFieldChange}
-                    required
-                  />
-                </label>
-
-                <label>
-                  <span>Stock</span>
-                  <input
-                    type="number"
-                    name="stock"
-                    min="0"
-                    value={productForm.stock}
-                    onChange={handleProductFieldChange}
-                    required
-                  />
-                </label>
-
-                <label className="admin-form__toggle">
-                  <input
-                    type="checkbox"
-                    name="isFeatured"
-                    checked={productForm.isFeatured}
-                    onChange={handleProductFieldChange}
-                  />
-                  <span>Feature this product</span>
-                </label>
-
-                <label>
-                  <span>Image URL</span>
-                  <input
-                    type="url"
-                    name="imageUrl"
-                    value={productForm.imageUrl}
-                    onChange={handleProductFieldChange}
-                    placeholder="https://..."
-                  />
-                </label>
-
-                <label>
-                  <span>Image Alt Text</span>
-                  <input
-                    type="text"
-                    name="imageAlt"
-                    value={productForm.imageAlt}
-                    onChange={handleProductFieldChange}
-                  />
-                </label>
-
-                <label className="admin-form__full">
-                  <span>Ingredients (comma or new line separated)</span>
-                  <textarea
-                    name="ingredients"
-                    value={productForm.ingredients}
-                    onChange={handleProductFieldChange}
-                    rows={2}
-                  />
-                </label>
-
-                <label className="admin-form__full">
-                  <span>Tasting Notes (comma or new line separated)</span>
-                  <textarea
-                    name="tastingNotes"
-                    value={productForm.tastingNotes}
-                    onChange={handleProductFieldChange}
-                    rows={2}
-                  />
-                </label>
-
-                <div className="admin-form__actions">
-                  <button type="submit" disabled={productSubmitting}>
-                    {productSubmitting
-                      ? 'Saving...'
-                      : editingProductId
-                        ? 'Update Product'
-                        : 'Create Product'}
-                  </button>
-
-                  {editingProductId && (
-                    <button type="button" className="is-secondary" onClick={resetProductForm}>
-                      Cancel Edit
-                    </button>
-                  )}
-                </div>
-              </form>
-            </article>
-
-            <article className="admin-panel">
-              <div className="admin-panel__heading">
-                <h2>Catalog</h2>
-                <span>{products.length} active products</span>
-              </div>
-
-              {products.length === 0 ? (
-                <p className="admin-empty">No products found.</p>
-              ) : (
-                <div className="admin-cards">
-                  {products.map((product) => (
-                    <article key={product._id} className="admin-product-card">
-                      <div className="admin-product-card__media">
-                        {product.images?.[0]?.url ? (
-                          <img
-                            src={product.images[0].url}
-                            alt={product.images[0].alt || product.name}
-                          />
-                        ) : (
-                          <div className="admin-product-card__placeholder">
-                            <Package size={20} />
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="admin-product-card__body">
-                        <h3>{product.name}</h3>
-                        <p>{formatLabel(product.category || 'other')}</p>
-                        <strong>{formatPrice(product.price || 0)}</strong>
-                        <small>{Number(product.stock || 0)} in stock</small>
-                      </div>
-
-                      <div className="admin-product-card__actions">
-                        <button type="button" onClick={() => handleEditProduct(product)}>
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          className="is-danger"
-                          onClick={() => handleDeleteProduct(product._id, product.name)}
-                          disabled={productDeletingId === product._id}
-                        >
-                          {productDeletingId === product._id ? 'Deleting...' : 'Delete'}
-                        </button>
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              )}
-            </article>
-          </section>
-        )}
-
-        {activeTab === 'contacts' && (
-          <section className="admin-panel">
-            <div className="admin-panel__heading">
-              <h2>Contact Requests</h2>
-              <span>Messages and tour bookings</span>
-            </div>
-
-            {contacts.length === 0 ? (
-              <p className="admin-empty">No contact requests yet.</p>
-            ) : (
-              <div className="admin-contact-list">
-                {contacts.map((contact) => (
-                  <article key={contact._id} className="admin-contact-card">
-                    <header>
-                      <div>
-                        <strong>{contact.name}</strong>
-                        <small>{new Date(contact.createdAt).toLocaleString()}</small>
-                      </div>
-                      <span className={`admin-contact-card__type is-${contact.requestType}`}>
-                        {contact.requestType === 'tour' ? (
-                          <>
-                            <PhoneCall size={14} />
-                            Tour
-                          </>
-                        ) : (
-                          <>
-                            <UserRound size={14} />
-                            Contact
-                          </>
-                        )}
+                    <div className="text-right">
+                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                        order.status === 'completed' ? 'bg-green-100 text-green-800' :
+                        order.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-red-100 text-red-800'
+                      }`}>
+                        {order.status || 'pending'}
                       </span>
-                    </header>
-
-                    <div className="admin-contact-card__meta">
-                      <span>{contact.email}</span>
-                      {contact.phone && <span>{contact.phone}</span>}
-                      {contact.subject && <span>{contact.subject}</span>}
-                      {contact.requestType === 'tour' && (
-                        <span>
-                          {formatLabel(contact.tourType || 'tour')} | {contact.tourDate || 'No date'} |{' '}
-                          {contact.tourTime || 'No time'} | Guests {contact.numberOfGuests || 1}
-                        </span>
-                      )}
                     </div>
-
-                    {contact.message && <p>{contact.message}</p>}
-
-                    <div className="admin-contact-card__controls">
-                      <select
-                        value={contactDrafts[contact._id]?.status || contact.status || 'new'}
-                        onChange={(event) =>
-                          handleContactDraftChange(contact._id, 'status', event.target.value)
-                        }
-                      >
-                        {contactStatusOptions.map((status) => (
-                          <option key={status} value={status}>
-                            {formatLabel(status)}
-                          </option>
-                        ))}
-                      </select>
-
-                      <input
-                        type="text"
-                        value={contactDrafts[contact._id]?.adminNotes || ''}
-                        onChange={(event) =>
-                          handleContactDraftChange(contact._id, 'adminNotes', event.target.value)
-                        }
-                        placeholder="Admin note"
-                      />
-
-                      <button
-                        type="button"
-                        onClick={() => handleSaveContact(contact._id)}
-                        disabled={contactSavingId === contact._id}
-                      >
-                        {contactSavingId === contact._id ? 'Saving...' : 'Save'}
-                      </button>
-
-                      <button
-                        type="button"
-                        className="is-danger"
-                        onClick={() => handleDeleteContact(contact._id)}
-                        disabled={contactDeletingId === contact._id}
-                      >
-                        {contactDeletingId === contact._id ? (
-                          'Deleting...'
-                        ) : (
-                          <>
-                            <Trash2 size={14} />
-                            Delete
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  </article>
+                  </div>
                 ))}
               </div>
-            )}
-          </section>
+              <Link to="/orders" className="mt-4 text-orange-600 dark:text-orange-400 hover:text-orange-700 font-medium flex items-center">
+                View All Orders
+                <ArrowRight className="w-4 h-4 ml-1" />
+              </Link>
+            </div>
+
+            {/* Low Stock Alert */}
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6 flex items-center">
+                <AlertTriangle className="w-5 h-5 mr-2 text-orange-600" />
+                Low Stock Alert
+              </h2>
+              <div className="space-y-4">
+                {products.filter(p => (p.stock || 0) < 10).slice(0, 5).map((product) => (
+                  <div key={product._id} className="flex items-center justify-between p-4 bg-red-50 dark:bg-red-900/20 rounded-lg">
+                    <div>
+                      <p className="font-medium text-gray-900 dark:text-white">{product.name}</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">{product.category}</p>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-red-600 dark:text-red-400 font-medium">
+                        {product.stock || 0} left
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <Link to="/products" className="mt-4 text-orange-600 dark:text-orange-400 hover:text-orange-700 font-medium flex items-center">
+                Manage Products
+                <ArrowRight className="w-4 h-4 ml-1" />
+              </Link>
+            </div>
+          </div>
         )}
 
-        <button type="button" className="admin-hub__floating-add" onClick={() => setActiveTab('products')}>
-          <Plus size={16} />
-          Add product
-        </button>
+        {/* Products Tab */}
+        {activeTab === 'products' && (
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Product Management</h2>
+              <div className="flex items-center space-x-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <input
+                    type="text"
+                    placeholder="Search products..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  />
+                </div>
+                <button
+                  onClick={() => setShowAddProduct(true)}
+                  className="muwas-outline-button"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add Product
+                </button>
+              </div>
+            </div>
+
+            {/* Add/Edit Product Modal */}
+            {(showAddProduct || editingProduct) && (
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                <div className="bg-white dark:bg-gray-800 rounded-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                  <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">
+                    {editingProduct ? 'Edit Product' : 'Add New Product'}
+                  </h3>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Product Name</label>
+                      <input
+                        type="text"
+                        value={productForm.name}
+                        onChange={(e) => setProductForm({...productForm, name: e.target.value})}
+                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Category</label>
+                      <select
+                        value={productForm.category}
+                        onChange={(e) => setProductForm({...productForm, category: e.target.value})}
+                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      >
+                        <option value="gin">Gin</option>
+                        <option value="whiskey">Whiskey</option>
+                        <option value="rum">Rum</option>
+                        <option value="liqueur">Liqueur</option>
+                        <option value="vodka">Vodka</option>
+                      </select>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Price (UGX)</label>
+                        <input
+                          type="number"
+                          value={productForm.price}
+                          onChange={(e) => setProductForm({...productForm, price: e.target.value})}
+                          className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Wholesale Price (UGX)</label>
+                        <input
+                          type="number"
+                          value={productForm.wholesalePrice}
+                          onChange={(e) => setProductForm({...productForm, wholesalePrice: e.target.value})}
+                          className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Stock</label>
+                      <input
+                        type="number"
+                        value={productForm.stock}
+                        onChange={(e) => setProductForm({...productForm, stock: e.target.value})}
+                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Short Description</label>
+                      <textarea
+                        value={productForm.shortDescription}
+                        onChange={(e) => setProductForm({...productForm, shortDescription: e.target.value})}
+                        rows={2}
+                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Full Description</label>
+                      <textarea
+                        value={productForm.description}
+                        onChange={(e) => setProductForm({...productForm, description: e.target.value})}
+                        rows={4}
+                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      />
+                    </div>
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        id="isFeatured"
+                        checked={productForm.isFeatured}
+                        onChange={(e) => setProductForm({...productForm, isFeatured: e.target.checked})}
+                        className="mr-2"
+                      />
+                      <label htmlFor="isFeatured" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Featured Product
+                      </label>
+                    </div>
+                  </div>
+                  <div className="flex justify-end space-x-4 mt-6">
+                    <button
+                      onClick={() => {
+                        setShowAddProduct(false);
+                        setEditingProduct(null);
+                        setProductForm({
+                          name: '',
+                          shortDescription: '',
+                          description: '',
+                          category: 'gin',
+                          price: '',
+                          wholesalePrice: '',
+                          stock: '',
+                          isFeatured: false,
+                          images: []
+                        });
+                      }}
+                      className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={editingProduct ? handleUpdateProduct : handleAddProduct}
+                      className="muwas-outline-button"
+                    >
+                      {editingProduct ? 'Update' : 'Add'} Product
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Products Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {products.map((product) => (
+                <div key={product._id} className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-semibold text-gray-900 dark:text-white">{product.name}</h3>
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() => handleEditProduct(product)}
+                        className="p-1 text-blue-600 hover:text-blue-700"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteProduct(product._id)}
+                        className="p-1 text-red-600 hover:text-red-700"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">{product.shortDescription}</p>
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="text-lg font-bold text-gray-900 dark:text-white">UGX {product.price}</span>
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Stock: {product.stock || 0}</span>
+                  </div>
+                  {product.isFeatured && (
+                    <div className="flex items-center text-orange-600">
+                      <Star className="w-4 h-4 mr-1" />
+                      <span className="text-sm font-medium">Featured</span>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Orders Tab */}
+        {activeTab === 'orders' && (
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">Order Management</h2>
+            <div className="space-y-4">
+              {orders.map((order) => (
+                <div key={order._id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h3 className="font-semibold text-gray-900 dark:text-white">Order #{order._id?.slice(-8).toUpperCase()}</h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">{order.customer?.name || 'Guest'}</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">{order.customer?.email}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-lg font-bold text-gray-900 dark:text-white">UGX {order.totalAmount}</p>
+                      <select
+                        value={order.status}
+                        onChange={(e) => handleUpdateOrderStatus(order._id, e.target.value)}
+                        className="mt-2 px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm"
+                      >
+                        <option value="pending">Pending</option>
+                        <option value="confirmed">Confirmed</option>
+                        <option value="processing">Processing</option>
+                        <option value="shipped">Shipped</option>
+                        <option value="delivered">Delivered</option>
+                        <option value="cancelled">Cancelled</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="mt-4">
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      {order.items?.length || 0} items • {new Date(order.createdAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Other tabs placeholder */}
+        {activeTab === 'customers' && (
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">Customer Management</h2>
+            <p className="text-gray-600 dark:text-gray-400">Customer management features coming soon...</p>
+          </div>
+        )}
+
+        {activeTab === 'analytics' && (
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">Analytics Dashboard</h2>
+            <p className="text-gray-600 dark:text-gray-400">Analytics features coming soon...</p>
+          </div>
+        )}
+
+        {activeTab === 'settings' && (
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">Settings</h2>
+            <p className="text-gray-600 dark:text-gray-400">Settings panel coming soon...</p>
+          </div>
+        )}
       </div>
+      
+      <Footer />
     </div>
   );
 };
