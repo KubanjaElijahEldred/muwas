@@ -5,16 +5,14 @@
       "routePrefix": "/",
       "framework": "vite",
       "buildCommand": "cd frontend && npm run build",
-      "installCommand": "cd frontend && npm install",
-      "devCommand": "cd frontend && npm run dev"
+      "installCommand": "cd frontend && npm install"
     },
     "backend": {
       "entrypoint": "backend",
       "routePrefix": "/_/backend",
       "buildCommand": "cd backend && npm install",
       "outputDirectory": "backend",
-      "installCommand": "cd backend && npm install",
-      "devCommand": "cd backend && npm run dev"
+      "installCommand": "cd backend && npm install"
     }
   },
   "build": {

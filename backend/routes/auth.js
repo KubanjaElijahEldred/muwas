@@ -500,6 +500,22 @@ router.get('/me', auth, async (req, res) => {
   res.json({ user: req.user });
 });
 
+// Get all users (admin only)
+router.get('/users', auth, async (req, res) => {
+  try {
+    // Only allow admin users to access all users
+    if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+      return res.status(403).json({ message: 'Access denied. Admin access required.' });
+    }
+
+    const users = await User.find({}).select('-password');
+    res.json({ users });
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    res.status(500).json({ message: 'Error fetching users' });
+  }
+});
+
 router.put('/profile', auth, async (req, res) => {
   try {
     const { name, phone, address } = req.body;

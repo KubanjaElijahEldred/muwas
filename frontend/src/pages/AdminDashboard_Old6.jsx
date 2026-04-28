@@ -37,14 +37,7 @@ import {
   X,
   MapPin,
   Sparkles,
-  ShieldCheck,
-  Bell,
-  Camera,
-  Upload,
-  Image,
-  User,
-  Mail,
-  Phone
+  ShieldCheck
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import Footer from '../components/Footer';
@@ -61,11 +54,6 @@ const AdminDashboard = () => {
   const [showAddProduct, setShowAddProduct] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [notifications, setNotifications] = useState([]);
-  const [showNotifications, setShowNotifications] = useState(false);
-  const [productImages, setProductImages] = useState([]);
-  const [imageUploadMode, setImageUploadMode] = useState('gallery'); // 'gallery', 'camera', 'url'
-  const [imageUrl, setImageUrl] = useState('');
   const [productForm, setProductForm] = useState({
     name: '',
     shortDescription: '',
@@ -85,71 +73,11 @@ const AdminDashboard = () => {
     totalProducts: 48,
     totalUsers: 1234,
     pendingOrders: 12,
-    lowStockProducts: 5,
-    wholesaleOrders: 34,
-    retailOrders: 122,
-    deliveriesToday: 8,
-    paymentsToday: 15
+    lowStockProducts: 5
   });
 
   // Check if user is superadmin
   const isSuperAdmin = user?.role === 'admin' || user?.role === 'superadmin';
-
-  // Mock notifications
-  const generateNotification = (type, data) => {
-    const notification = {
-      id: Date.now(),
-      type: type,
-      title: '',
-      message: '',
-      data: data,
-      timestamp: new Date(),
-      read: false
-    };
-
-    switch (type) {
-      case 'wholesale_signup':
-        notification.title = 'New Wholesale Account';
-        notification.message = `${data.name} (${data.email}) has created a wholesale account`;
-        break;
-      case 'retail_signup':
-        notification.title = 'New Retail Customer';
-        notification.message = `${data.name} (${data.email}) has created a retail account`;
-        break;
-      case 'special_customer':
-        notification.title = 'VIP Customer Registration';
-        notification.message = `${data.name} has registered as a special customer`;
-        break;
-      case 'wholesale_order':
-        notification.title = 'Wholesale Order';
-        notification.message = `New wholesale order from ${data.customerName} for UGX ${data.total}`;
-        break;
-      case 'retail_order':
-        notification.title = 'Retail Order';
-        notification.message = `New retail order from ${data.customerName} for UGX ${data.total}`;
-        break;
-      case 'guest_order':
-        notification.title = 'Guest Order';
-        notification.message = `New order from guest customer for UGX ${data.total}`;
-        break;
-      case 'unconfirmed_order':
-        notification.title = 'Unconfirmed Order';
-        notification.message = `Order #${data.orderId} from ${data.customerName} needs confirmation`;
-        break;
-      case 'delivery':
-        notification.title = 'New Delivery';
-        notification.message = `Delivery scheduled for order #${data.orderId}`;
-        break;
-      case 'payment':
-        notification.title = 'Payment Received';
-        notification.message = `UGX ${data.amount} payment received from ${data.customerName}`;
-        break;
-      default:
-        break;
-    }
-
-    setNotifications(prev => [notification, ...prev].slice(0, 50)); // Keep only last 50 notifications
-  };
 
   useEffect(() => {
     if (!isSuperAdmin) {
@@ -166,64 +94,13 @@ const AdminDashboard = () => {
         ]);
 
         if (ordersRes.status === 'fulfilled') {
-          const fetchedOrders = ordersRes.value.data.orders || [];
-          setOrders(fetchedOrders);
-          
-          // Generate notifications for different order types
-          fetchedOrders.forEach(order => {
-            if (order.customer?.role === 'wholesale') {
-              generateNotification('wholesale_order', {
-                customerName: order.customer?.name,
-                total: order.totalAmount
-              });
-            } else if (order.customer?.role === 'retail') {
-              generateNotification('retail_order', {
-                customerName: order.customer?.name,
-                total: order.totalAmount
-              });
-            } else if (!order.customer) {
-              generateNotification('guest_order', {
-                customerName: 'Guest',
-                total: order.totalAmount
-              });
-            }
-            
-            if (order.status === 'pending') {
-              generateNotification('unconfirmed_order', {
-                orderId: order._id?.slice(-8).toUpperCase(),
-                customerName: order.customer?.name || 'Guest'
-              });
-            }
-          });
+          setOrders(ordersRes.value.data.orders || []);
         }
-        
         if (productsRes.status === 'fulfilled') {
           setProducts(productsRes.value.data.products || []);
         }
-        
         if (usersRes.status === 'fulfilled') {
-          const fetchedUsers = usersRes.value.data.users || [];
-          setUsers(fetchedUsers);
-          
-          // Generate notifications for new user signups
-          fetchedUsers.forEach(user => {
-            if (user.role === 'wholesale') {
-              generateNotification('wholesale_signup', {
-                name: user.name,
-                email: user.email
-              });
-            } else if (user.role === 'retail') {
-              generateNotification('retail_signup', {
-                name: user.name,
-                email: user.email
-              });
-            } else if (user.role === 'special') {
-              generateNotification('special_customer', {
-                name: user.name,
-                email: user.email
-              });
-            }
-          });
+          setUsers(usersRes.value.data.users || []);
         }
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
@@ -237,12 +114,7 @@ const AdminDashboard = () => {
 
   const handleAddProduct = async () => {
     try {
-      const productData = {
-        ...productForm,
-        images: productImages
-      };
-      
-      const response = await api.post('/products', productData);
+      const response = await api.post('/products', productForm);
       setProducts([...products, response.data.product]);
       setShowAddProduct(false);
       setProductForm({
@@ -256,9 +128,6 @@ const AdminDashboard = () => {
         isFeatured: false,
         images: []
       });
-      setProductImages([]);
-      setImageUrl('');
-      setImageUploadMode('gallery');
     } catch (error) {
       console.error('Error adding product:', error);
     }
@@ -277,17 +146,11 @@ const AdminDashboard = () => {
       isFeatured: product.isFeatured,
       images: product.images || []
     });
-    setProductImages(product.images || []);
   };
 
   const handleUpdateProduct = async () => {
     try {
-      const productData = {
-        ...productForm,
-        images: productImages
-      };
-      
-      const response = await api.put(`/products/${editingProduct._id}`, productData);
+      const response = await api.put(`/products/${editingProduct._id}`, productForm);
       setProducts(products.map(p => p._id === editingProduct._id ? response.data.product : p));
       setEditingProduct(null);
       setProductForm({
@@ -301,9 +164,6 @@ const AdminDashboard = () => {
         isFeatured: false,
         images: []
       });
-      setProductImages([]);
-      setImageUrl('');
-      setImageUploadMode('gallery');
     } catch (error) {
       console.error('Error updating product:', error);
     }
@@ -327,59 +187,6 @@ const AdminDashboard = () => {
     } catch (error) {
       console.error('Error updating order:', error);
     }
-  };
-
-  const handleImageUpload = (e) => {
-    const files = Array.from(e.target.files);
-    const newImages = files.map(file => ({
-      url: URL.createObjectURL(file),
-      alt: file.name,
-      file: file
-    }));
-    setProductImages([...productImages, ...newImages]);
-  };
-
-  const handleCameraCapture = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      const video = document.createElement('video');
-      video.srcObject = stream;
-      video.play();
-
-      const canvas = document.createElement('canvas');
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(video, 0, 0);
-
-      canvas.toBlob((blob) => {
-        const url = URL.createObjectURL(blob);
-        setProductImages([...productImages, {
-          url: url,
-          alt: 'Camera capture',
-          file: new File([blob], 'camera-capture.jpg', { type: 'image/jpeg' })
-        }]);
-        stream.getTracks().forEach(track => track.stop());
-      }, 'image/jpeg');
-    } catch (error) {
-      console.error('Error accessing camera:', error);
-      alert('Unable to access camera. Please check permissions.');
-    }
-  };
-
-  const handleUrlImage = () => {
-    if (imageUrl.trim()) {
-      setProductImages([...productImages, {
-        url: imageUrl.trim(),
-        alt: 'URL image',
-        file: null
-      }]);
-      setImageUrl('');
-    }
-  };
-
-  const removeImage = (index) => {
-    setProductImages(productImages.filter((_, i) => i !== index));
   };
 
   // Redirect if not superadmin
@@ -433,11 +240,7 @@ const AdminDashboard = () => {
     { title: 'Total Orders', value: stats.totalOrders, icon: ShoppingCart, trend: '+12%', color: 'default' },
     { title: 'Revenue', value: `UGX ${stats.totalRevenue.toLocaleString()}`, icon: DollarSign, trend: '+8%', color: 'reserve' },
     { title: 'Products', value: stats.totalProducts, icon: Package, trend: '-3%', color: 'botanical' },
-    { title: 'Customers', value: stats.totalUsers, icon: Users, trend: '+15%', color: 'select' },
-    { title: 'Wholesale Orders', value: stats.wholesaleOrders, icon: Store, trend: '+20%', color: 'default' },
-    { title: 'Retail Orders', value: stats.retailOrders, icon: ShoppingCart, trend: '+5%', color: 'reserve' },
-    { title: 'Deliveries Today', value: stats.deliveriesToday, icon: Truck, trend: '+10%', color: 'botanical' },
-    { title: 'Payments Today', value: stats.paymentsToday, icon: CreditCard, trend: '+18%', color: 'select' }
+    { title: 'Customers', value: stats.totalUsers, icon: Users, trend: '+15%', color: 'select' }
   ];
 
   const featureTiles = [
@@ -445,8 +248,6 @@ const AdminDashboard = () => {
     { icon: ShieldCheck, title: 'Protected checkout', copy: 'Mobile Money, card, and bank transfer supported.' },
     { icon: Sparkles, title: 'Farm-led craft', copy: 'Every bottle is shaped by local botanicals, slower runs, and warmer finishes.' }
   ];
-
-  const unreadNotifications = notifications.filter(n => !n.read).length;
 
   return (
     <div className="products-page">
@@ -547,68 +348,6 @@ const AdminDashboard = () => {
                 </div>
               </div>
               <div className="flex items-center space-x-4">
-                {/* Notifications */}
-                <div className="relative">
-                  <button
-                    onClick={() => setShowNotifications(!showNotifications)}
-                    className="relative p-2 rounded-lg hover:bg-gray-100 transition-colors"
-                  >
-                    <Bell className="w-5 h-5 text-gray-600" />
-                    {unreadNotifications > 0 && (
-                      <span className="absolute -top-1 -right-1 w-5 h-5 bg-orange-600 text-white text-xs rounded-full flex items-center justify-center">
-                        {unreadNotifications > 9 ? '9+' : unreadNotifications}
-                      </span>
-                    )}
-                  </button>
-                  
-                  {/* Notifications Dropdown */}
-                  {showNotifications && (
-                    <div className="absolute right-0 mt-2 w-80 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
-                      <div className="p-4 border-b border-gray-200">
-                        <h3 className="font-semibold text-gray-900">Notifications</h3>
-                      </div>
-                      <div className="max-h-64 overflow-y-auto">
-                        {notifications.length > 0 ? (
-                          notifications.slice(0, 10).map((notification) => (
-                            <div
-                              key={notification.id}
-                              className={`p-4 border-b border-gray-100 hover:bg-gray-50 cursor-pointer ${
-                                !notification.read ? 'bg-orange-50' : ''
-                              }`}
-                              onClick={() => {
-                                setNotifications(notifications.map(n => 
-                                  n.id === notification.id ? { ...n, read: true } : n
-                                ));
-                              }}
-                            >
-                              <div className="flex items-start space-x-3">
-                                <div className={`w-2 h-2 rounded-full mt-2 ${
-                                  notification.type.includes('wholesale') ? 'bg-blue-500' :
-                                  notification.type.includes('retail') ? 'bg-green-500' :
-                                  notification.type.includes('order') ? 'bg-orange-500' :
-                                  notification.type.includes('payment') ? 'bg-purple-500' :
-                                  'bg-gray-500'
-                                }`} />
-                                <div className="flex-1">
-                                  <p className="text-sm font-medium text-gray-900">{notification.title}</p>
-                                  <p className="text-xs text-gray-600">{notification.message}</p>
-                                  <p className="text-xs text-gray-400 mt-1">
-                                    {new Date(notification.timestamp).toLocaleString()}
-                                  </p>
-                                </div>
-                              </div>
-                            </div>
-                          ))
-                        ) : (
-                          <div className="p-4 text-center text-gray-500">
-                            No notifications
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
                 <Link to="/products" className="muwas-outline-button">
                   <Store className="w-4 h-4" />
                   View Store
@@ -756,26 +495,52 @@ const AdminDashboard = () => {
               <strong>{stats.lowStockProducts}</strong>
               <span>Products needing restock</span>
             </div>
-            <div className="products-market-strip__card">
-              <strong>{stats.wholesaleOrders}</strong>
-              <span>Wholesale orders</span>
-            </div>
-            <div className="products-market-strip__card">
-              <strong>{stats.retailOrders}</strong>
-              <span>Retail orders</span>
-            </div>
-            <div className="products-market-strip__card">
-              <strong>{stats.deliveriesToday}</strong>
-              <span>Deliveries today</span>
-            </div>
-            <div className="products-market-strip__card">
-              <strong>{stats.paymentsToday}</strong>
-              <span>Payments today</span>
-            </div>
           </div>
 
           {/* Main Content Area */}
           <main className="flex-1 p-4 sm:p-6 lg:p-8">
+            {/* Overview Tab */}
+            {activeTab === 'overview' && (
+              <section className="products-section">
+                <div className="products-section__heading">
+                  <div>
+                    <p className="products-section__eyebrow">Recent Activity</p>
+                    <h2>Latest orders and system updates.</h2>
+                  </div>
+
+                  <Link to="/orders" className="products-section__link">
+                    View all orders
+                    <ArrowRight size={16} strokeWidth={1.9} />
+                  </Link>
+                </div>
+
+                <div className="products-deals">
+                  {orders.slice(0, 3).map((order, index) => (
+                    <article
+                      key={order._id}
+                      className={`products-deal-card products-deal-card--default products-deal-card--${index + 1}`}
+                    >
+                      <div className="products-deal-card__copy">
+                        <span className="products-deal-card__offer">#{order._id?.slice(-8).toUpperCase()}</span>
+                        <h3>{order.customer?.name || 'Guest Customer'}</h3>
+                        <p>{order.items?.length || 0} items • UGX {order.totalAmount || 0}</p>
+                        <div className="products-deal-card__meta">
+                          <span>{new Date(order.createdAt).toLocaleDateString()}</span>
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            order.status === 'completed' ? 'bg-green-100 text-green-800' :
+                            order.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-red-100 text-red-800'
+                          }`}>
+                            {order.status || 'pending'}
+                          </span>
+                        </div>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </section>
+            )}
+
             {/* Products Tab */}
             {activeTab === 'products' && (
               <section className="products-section">
@@ -918,9 +683,6 @@ const AdminDashboard = () => {
 
                           <h3>{order.customer?.name || 'Guest Customer'}</h3>
                           <p>{order.customer?.email || 'No email provided'}</p>
-                          <p className="text-sm text-gray-600">
-                            Role: {order.customer?.role || 'Guest'}
-                          </p>
 
                           <div className="products-card__facts">
                             <div>
@@ -973,47 +735,6 @@ const AdminDashboard = () => {
             )}
 
             {/* Other tabs placeholder */}
-            {activeTab === 'overview' && (
-              <section className="products-section">
-                <div className="products-section__heading">
-                  <div>
-                    <p className="products-section__eyebrow">Recent Activity</p>
-                    <h2>Latest orders and system updates.</h2>
-                  </div>
-
-                  <Link to="/orders" className="products-section__link">
-                    View all orders
-                    <ArrowRight size={16} strokeWidth={1.9} />
-                  </Link>
-                </div>
-
-                <div className="products-deals">
-                  {orders.slice(0, 3).map((order, index) => (
-                    <article
-                      key={order._id}
-                      className={`products-deal-card products-deal-card--default products-deal-card--${index + 1}`}
-                    >
-                      <div className="products-deal-card__copy">
-                        <span className="products-deal-card__offer">#{order._id?.slice(-8).toUpperCase()}</span>
-                        <h3>{order.customer?.name || 'Guest Customer'}</h3>
-                        <p>{order.items?.length || 0} items • UGX {order.totalAmount || 0}</p>
-                        <div className="products-deal-card__meta">
-                          <span>{new Date(order.createdAt).toLocaleDateString()}</span>
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            order.status === 'completed' ? 'bg-green-100 text-green-800' :
-                            order.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                            'bg-red-100 text-red-800'
-                          }`}>
-                            {order.status || 'pending'}
-                          </span>
-                        </div>
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              </section>
-            )}
-
             {activeTab === 'customers' && (
               <section className="products-section">
                 <div className="products-section__heading">
@@ -1105,127 +826,10 @@ const AdminDashboard = () => {
       {/* Add/Edit Product Modal */}
       {(showAddProduct || editingProduct) && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="products-showcase__card products-showcase__card--default max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="products-showcase__card products-showcase__card--default max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="products-showcase__card-copy">
               <h3>{editingProduct ? 'Edit Product' : 'Add New Product'}</h3>
-              
-              {/* Image Upload Section */}
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-4">Product Images</label>
-                
-                {/* Upload Mode Selection */}
-                <div className="flex space-x-4 mb-4">
-                  <button
-                    onClick={() => setImageUploadMode('gallery')}
-                    className={`px-4 py-2 rounded-lg ${
-                      imageUploadMode === 'gallery' 
-                        ? 'bg-orange-600 text-white' 
-                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                    }`}
-                  >
-                    <Image className="w-4 h-4 mr-2" />
-                    Gallery
-                  </button>
-                  <button
-                    onClick={() => setImageUploadMode('camera')}
-                    className={`px-4 py-2 rounded-lg ${
-                      imageUploadMode === 'camera' 
-                        ? 'bg-orange-600 text-white' 
-                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                    }`}
-                  >
-                    <Camera className="w-4 h-4 mr-2" />
-                    Camera
-                  </button>
-                  <button
-                    onClick={() => setImageUploadMode('url')}
-                    className={`px-4 py-2 rounded-lg ${
-                      imageUploadMode === 'url' 
-                        ? 'bg-orange-600 text-white' 
-                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                    }`}
-                  >
-                    <Upload className="w-4 h-4 mr-2" />
-                    URL
-                  </button>
-                </div>
-
-                {/* Image Upload Area */}
-                {imageUploadMode === 'gallery' && (
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                    <input
-                      type="file"
-                      multiple
-                      accept="image/*"
-                      onChange={handleImageUpload}
-                      className="hidden"
-                      id="image-upload"
-                    />
-                    <label htmlFor="image-upload" className="cursor-pointer">
-                      <Upload className="w-12 h-12 text-gray-400 mx-auto mb-2" />
-                      <p className="text-gray-600">Click to upload images or drag and drop</p>
-                      <p className="text-sm text-gray-400">PNG, JPG, GIF up to 10MB</p>
-                    </label>
-                  </div>
-                )}
-
-                {imageUploadMode === 'camera' && (
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                    <button
-                      onClick={handleCameraCapture}
-                      className="px-6 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
-                    >
-                      <Camera className="w-5 h-5 mr-2" />
-                      Capture Photo
-                    </button>
-                    <p className="text-sm text-gray-400 mt-2">Click to open camera and capture product photo</p>
-                  </div>
-                )}
-
-                {imageUploadMode === 'url' && (
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
-                    <div className="flex space-x-2">
-                      <input
-                        type="url"
-                        value={imageUrl}
-                        onChange={(e) => setImageUrl(e.target.value)}
-                        placeholder="Enter image URL..."
-                        className="flex-1 px-4 py-2 border border-gray-300 rounded-lg"
-                      />
-                      <button
-                        onClick={handleUrlImage}
-                        className="px-6 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
-                      >
-                        Add Image
-                      </button>
-                    </div>
-                    <p className="text-sm text-gray-400 mt-2">Enter the URL of an image hosted online</p>
-                  </div>
-                )}
-
-                {/* Image Preview */}
-                {productImages.length > 0 && (
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
-                    {productImages.map((image, index) => (
-                      <div key={index} className="relative group">
-                        <img
-                          src={image.url}
-                          alt={image.alt}
-                          className="w-full h-24 object-cover rounded-lg border border-gray-200"
-                        />
-                        <button
-                          onClick={() => removeImage(index)}
-                          className="absolute top-1 right-1 w-6 h-6 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div className="space-y-4">
+              <div className="space-y-4 mt-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Product Name</label>
                   <input
@@ -1325,9 +929,6 @@ const AdminDashboard = () => {
                       isFeatured: false,
                       images: []
                     });
-                    setProductImages([]);
-                    setImageUrl('');
-                    setImageUploadMode('gallery');
                   }}
                   className="products-showcase__cta"
                 >
