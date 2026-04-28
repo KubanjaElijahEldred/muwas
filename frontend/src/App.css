@@ -3,6 +3,17 @@ main {
   min-width: 0;
 }
 
+.muwas-app--admin {
+  min-height: 100svh;
+  background: #070b15;
+  color: #dbe8ff;
+}
+
+.muwas-app-main--admin {
+  flex: 1;
+  min-width: 0;
+}
+
 .muwas-outline-button,
 .muwas-pill-link {
   display: inline-flex;

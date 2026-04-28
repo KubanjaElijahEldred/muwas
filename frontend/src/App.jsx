@@ -18,11 +18,6 @@ import Profile from './pages/Profile';
 import Orders from './pages/Orders';
 import Wholesale from './pages/Wholesale';
 import AdminDashboard from './pages/AdminDashboard';
-import MTNMomoAPI from './pages/MTNMomoAPI';
-import MTNMomoDocs from './pages/MTNMomoDocs';
-import MTNMomoSandbox from './pages/MTNMomoSandbox';
-import AirtelMoneyAPI from './pages/AirtelMoneyAPI';
-import MuwasSimulation from './pages/MuwasSimulation';
 import ProtectedRoute from './components/ProtectedRoute';
 import { fetchWithApiFallback } from './utils/api';
 import './App.css';
@@ -137,11 +132,6 @@ function App() {
                 <Route path="/contact" element={<Contact />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
-                <Route path="/mtn-momo" element={<MTNMomoAPI />} />
-                <Route path="/mtn-momo/docs" element={<MTNMomoDocs />} />
-                <Route path="/mtn-momo/sandbox" element={<MTNMomoSandbox />} />
-                <Route path="/airtel-money" element={<AirtelMoneyAPI />} />
-                <Route path="/muwas-simulation" element={<MuwasSimulation />} />
                 <Route 
                   path="/profile" 
                   element={

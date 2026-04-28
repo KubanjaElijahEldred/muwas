@@ -51,6 +51,10 @@ const userSchema = new mongoose.Schema({
     country: { type: String, default: 'Uganda' },
     postalCode: String
   },
+  profileImage: {
+    type: String,
+    trim: true
+  },
   createdAt: {
     type: Date,
     default: Date.now

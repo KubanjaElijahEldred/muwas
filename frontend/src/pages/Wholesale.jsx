@@ -1,15 +1,76 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import {
+  ArrowRight,
+  Filter,
+  FlaskConical,
+  Leaf,
+  MapPin,
+  Package,
+  Search,
+  ShieldCheck,
+  ShoppingCart,
+  Sparkles,
+  Star,
+  Truck,
+  Plus,
+  Minus,
+  Trash2,
+} from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { Package, Plus, Minus, Trash2, ShoppingCart } from 'lucide-react';
-import { getProductImage, normalizeProductCatalog } from '../utils/productPresentation';
+import {
+  formatLabel,
+  formatPrice,
+  normalizeProductCatalog,
+} from '../utils/productPresentation';
+import TypewriterText from '../components/TypewriterText';
+import { fetchWithApiFallback } from '../utils/api';
+import { fallbackProducts } from '../data/fallbackProducts';
+
+const wholesaleFeatureTiles = [
+  {
+    icon: Truck,
+    title: 'Bulk delivery',
+    copy: 'Dedicated wholesale shipping across Uganda with volume discounts.',
+  },
+  {
+    icon: ShieldCheck,
+    title: 'Partner pricing',
+    copy: 'Exclusive wholesale rates and flexible payment terms for partners.',
+  },
+  {
+    icon: Sparkles,
+    title: 'Priority support',
+    copy: 'Dedicated account manager and priority order processing.',
+  },
+];
+
+const categoryIcons = {
+  gin: FlaskConical,
+  whiskey: Sparkles,
+  liqueur: Sparkles,
+  rum: ShieldCheck,
+  vodka: Truck,
+  reserve: Leaf,
+};
 
 const Wholesale = () => {
+  const location = useLocation();
   const { user, api } = useAuth();
   const [products, setProducts] = useState([]);
-  const [cartItems, setCartItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [catalogError, setCatalogError] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [activeShowcaseIndex, setActiveShowcaseIndex] = useState(0);
+  const [cartItems, setCartItems] = useState([]);
   const [orderLoading, setOrderLoading] = useState(false);
   const [message, setMessage] = useState('');
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    setSearchTerm(params.get('search') || '');
+  }, [location.search]);
 
   useEffect(() => {
     fetchProducts();
@@ -17,15 +78,89 @@ const Wholesale = () => {
 
   const fetchProducts = async () => {
     try {
-      const response = await api.get('/wholesale');
-      setProducts(normalizeProductCatalog(response.data.products || []));
+      setCatalogError('');
+      const response = await api.get('/products');
+
+      if (!response.ok) {
+        throw new Error(`Catalog request failed with status ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (Array.isArray(data.products) && data.products.length > 0) {
+        setProducts(normalizeProductCatalog(data.products));
+        return;
+      }
+
+      setProducts([]);
+      setCatalogError('Live catalog is empty right now.');
     } catch (error) {
-      console.error('Error fetching wholesale products:', error);
-      setMessage('Failed to fetch wholesale products');
+      console.error('Error fetching products:', error);
+      setProducts([]);
+      setCatalogError('Unable to load products. Please try again later.');
     } finally {
       setLoading(false);
     }
   };
+
+  const categories = Array.from(new Set(products.map((product) => product.category).filter(Boolean)));
+
+  const categoryOptions = [
+    {
+      key: '',
+      label: 'All Bottles',
+      description: `${products.length} curated pours`,
+      icon: Sparkles,
+    },
+    ...categories.map((category) => ({
+      key: category,
+      label: formatLabel(category),
+      description: `${products.filter((product) => product.category === category).length} bottles`,
+      icon: categoryIcons[category] || Package,
+    })),
+  ];
+
+  const filteredProducts = products.filter((product) => {
+    const haystack = [product.name, product.shortDescription, product.description, product.category]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase();
+
+    const matchesSearch = haystack.includes(searchTerm.toLowerCase());
+    const matchesCategory = !selectedCategory || product.category === selectedCategory;
+
+    return matchesSearch && matchesCategory;
+  });
+
+  const activeProducts = filteredProducts.length > 0 ? filteredProducts : [];
+  const showcaseProducts = (activeProducts.length > 0 ? activeProducts : products).slice(0, 3);
+  const popularProducts = activeProducts.length > 0 ? activeProducts : products;
+  const hasResults = activeProducts.length > 0;
+  const catalogStatus = loading
+    ? 'Refreshing the wholesale catalog...'
+    : catalogError
+      ? 'Live catalog unavailable.'
+      : 'Ready to place bulk orders.';
+  const inventoryCount = products.reduce((total, product) => total + Number(product.stock || 0), 0);
+  const featuredCount = products.filter((product) => product.offer && product.offer !== 'Featured').length;
+
+  useEffect(() => {
+    setActiveShowcaseIndex(0);
+  }, [showcaseProducts.length]);
+
+  useEffect(() => {
+    if (showcaseProducts.length <= 1) {
+      return undefined;
+    }
+
+    const slideTimer = window.setInterval(() => {
+      setActiveShowcaseIndex((currentIndex) => (currentIndex + 1) % showcaseProducts.length);
+    }, 4200);
+
+    return () => {
+      window.clearInterval(slideTimer);
+    };
+  }, [showcaseProducts.length]);
 
   const addToCart = (product, quantity = 1) => {
     setCartItems(prevItems => {
@@ -41,8 +176,8 @@ const Wholesale = () => {
         return [...prevItems, {
           productId: product._id,
           name: product.name,
-          price: product.wholesalePrice,
-          image: getProductImage(product),
+          price: product.wholesalePrice || product.price,
+          image: product.images?.[0]?.url || '',
           quantity
         }];
       }
@@ -98,7 +233,7 @@ const Wholesale = () => {
         notes: 'Wholesale order'
       };
 
-      const response = await api.post('/wholesale/order', orderData);
+      const response = await api.post('/orders', orderData);
       
       setMessage('Wholesale order placed successfully!');
       setCartItems([]);
@@ -109,181 +244,445 @@ const Wholesale = () => {
     }
   };
 
-  const formatPrice = (price) => {
-    return `UGX ${price.toLocaleString()}`;
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-dark-900 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gold-500"></div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-dark-900 py-12">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="mb-8">
-          <h1 className="text-4xl font-serif font-bold text-white mb-4">
-            Wholesale Portal
-          </h1>
-          <p className="text-xl text-gray-300">
-            Exclusive pricing for wholesale partners. Minimum order quantities apply.
-          </p>
-        </div>
+    <div className="products-page">
+      <div className="products-page__inner">
+        <section className="products-showcase">
+          <div className="products-showcase__hero">
+            <div className="products-showcase__copy">
+              <div className="products-showcase__eyebrow">
+                <span>Muwas Wholesale Portal</span>
+                <span>{catalogStatus}</span>
+              </div>
 
-        {message && (
-          <div className={`mb-6 px-4 py-3 rounded-lg ${
-            message.includes('success') 
-              ? 'bg-green-900/50 border border-green-600 text-green-200' 
-              : 'bg-red-900/50 border border-red-600 text-red-200'
-          }`}>
-            {message}
-          </div>
-        )}
+              <h1>
+                <TypewriterText 
+                  texts={[
+                    "Exclusive wholesale pricing available.", 
+                    "Bulk orders with dedicated support.", 
+                    "Premium quality guaranteed always."
+                  ]}
+                  speed={30}
+                  delay={500}
+                  deleteSpeed={20}
+                  pauseDuration={2000}
+                />
+              </h1>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2">
-            <div className="bg-dark-800 rounded-lg border border-gold-600/20 p-6">
-              <h2 className="text-2xl font-semibold text-white mb-6">Wholesale Products</h2>
-              
-              {products.length === 0 ? (
-                <div className="text-center py-8">
-                  <Package className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-                  <p className="text-gray-400">No wholesale products available</p>
-                </div>
-              ) : (
-                <div className="space-y-6">
-                  {products.map((product) => (
-                    <div key={product._id} className="border border-gold-600/20 rounded-lg p-4">
-                      <div className="flex items-start space-x-4">
-                        <div className="w-20 h-20 bg-dark-700 rounded-lg flex items-center justify-center flex-shrink-0">
-                          {product.images && product.images.length > 0 ? (
-                            <img
-                              src={product.images[0].url}
-                              alt={product.name}
-                              className="w-full h-full object-cover rounded-lg"
-                            />
-                          ) : (
-                            <Package className="w-8 h-8 text-gray-600" />
-                          )}
-                        </div>
+              <p>
+                Access exclusive wholesale pricing, bulk ordering capabilities, and priority support 
+                tailored for retailers, bars, and distribution partners across Uganda.
+              </p>
 
-                        <div className="flex-1">
-                          <h3 className="text-lg font-semibold text-white mb-2">{product.name}</h3>
-                          <p className="text-gray-400 text-sm mb-3">{product.shortDescription}</p>
-                          
-                          <div className="grid grid-cols-2 gap-4 mb-3">
-                            <div>
-                              <p className="text-gray-500 text-xs">Retail Price</p>
-                              <p className="text-gray-400 line-through">{formatPrice(product.price)}</p>
-                            </div>
-                            <div>
-                              <p className="text-gray-500 text-xs">Wholesale Price</p>
-                              <p className="text-gold-500 font-bold">{formatPrice(product.wholesalePrice)}</p>
-                            </div>
-                          </div>
+              <div className="products-showcase__actions">
+                <Link
+                  to="/contact"
+                  className="products-showcase__cta products-showcase__cta--primary"
+                >
+                  Contact sales team
+                  <ArrowRight size={17} strokeWidth={1.9} />
+                </Link>
+                <Link to="/story" className="products-showcase__cta">
+                  Learn about Muwas
+                </Link>
+              </div>
 
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-2">
-                              <button
-                                onClick={() => updateQuantity(product._id, Math.max(1, (cartItems.find(item => item.productId === product._id)?.quantity || 0) - 1))}
-                                className="p-1 text-gray-400 hover:text-gold-500 transition-colors"
-                              >
-                                <Minus className="w-4 h-4" />
-                              </button>
-                              <span className="text-white font-medium w-8 text-center">
-                                {cartItems.find(item => item.productId === product._id)?.quantity || 0}
-                              </span>
-                              <button
-                                onClick={() => addToCart(product)}
-                                className="p-1 text-gray-400 hover:text-gold-500 transition-colors"
-                              >
-                                <Plus className="w-4 h-4" />
-                              </button>
-                            </div>
-                            
-                            <div className="text-right">
-                              <p className="text-gray-400 text-sm">Stock: {product.stock}</p>
-                              <p className="text-gray-400 text-sm">ABV: {product.abv}%</p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
+              <div className="products-showcase__services">
+                {wholesaleFeatureTiles.map(({ icon: Icon, title, copy }) => (
+                  <div key={title} className="products-showcase__service">
+                    <span className="products-showcase__service-icon">
+                      <Icon size={18} strokeWidth={1.8} />
+                    </span>
+                    <div>
+                      <strong>{title}</strong>
+                      <span>{copy}</span>
                     </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="products-showcase__visual">
+              <div className="products-showcase__carousel">
+                <div
+                  className="products-showcase__track"
+                  style={{ transform: `translateX(-${activeShowcaseIndex * 100}%)` }}
+                >
+                  {showcaseProducts.map((product, index) => {
+                    const wholesalePrice = product.wholesalePrice || product.price;
+
+                    return (
+                      <div key={`${product._id}-showcase`} className="products-showcase__slide">
+                        <article
+                          className={`products-showcase__card products-showcase__card--${product.accent || 'default'} products-showcase__card--${
+                            index + 1
+                          }`}
+                        >
+                          <span className="products-showcase__card-badge">Wholesale</span>
+
+                          <div className="products-showcase__card-copy">
+                            <strong>{product.name}</strong>
+                            <span>{product.badge}</span>
+                            <p className="products-showcase__card-note">{product.promo}</p>
+
+                            <div className="products-showcase__card-facts">
+                              <span>{formatPrice(wholesalePrice)}</span>
+                              <span>{product.abv}% ABV</span>
+                              <span>{product.volume}ml</span>
+                            </div>
+
+                            <div className="products-showcase__card-actions">
+                              <button
+                                type="button"
+                                onClick={() => addToCart(product)}
+                                className="products-showcase__card-link products-showcase__card-link--primary"
+                              >
+                                <ShoppingCart size={16} strokeWidth={1.9} />
+                                Add to wholesale order
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="products-showcase__card-media">
+                            <img
+                              src={product.images[0]?.url}
+                              alt={product.images[0]?.alt || product.name}
+                              className="products-showcase__card-image"
+                            />
+                          </div>
+                        </article>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="products-showcase__controls">
+                <p className="products-showcase__caption">Featured wholesale products on automatic slideshow</p>
+
+                <div className="products-showcase__pagination" aria-label="Featured product slides">
+                  {showcaseProducts.map((product, index) => (
+                    <button
+                      key={`${product._id}-dot`}
+                      type="button"
+                      className={`products-showcase__slide-button ${
+                        activeShowcaseIndex === index ? 'is-active' : ''
+                      }`}
+                      onClick={() => setActiveShowcaseIndex(index)}
+                      aria-label={`Show ${product.name}`}
+                      aria-pressed={activeShowcaseIndex === index}
+                    />
                   ))}
                 </div>
-              )}
-            </div>
-          </div>
-
-          <div className="lg:col-span-1">
-            <div className="bg-dark-800 rounded-lg border border-gold-600/20 p-6 sticky top-24">
-              <h2 className="text-xl font-semibold text-white mb-4">Wholesale Order</h2>
-              
-              {cartItems.length === 0 ? (
-                <div className="text-center py-8">
-                  <ShoppingCart className="w-12 h-12 text-gray-600 mx-auto mb-3" />
-                  <p className="text-gray-400 text-sm">No items in cart</p>
-                </div>
-              ) : (
-                <>
-                  <div className="space-y-3 mb-6 max-h-64 overflow-y-auto">
-                    {cartItems.map((item) => (
-                      <div key={item.productId} className="flex items-center justify-between text-sm">
-                        <div className="flex-1">
-                          <p className="text-white font-medium">{item.name}</p>
-                          <p className="text-gray-400">Qty: {item.quantity}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-white font-medium">
-                            {formatPrice(item.price * item.quantity)}
-                          </p>
-                          <button
-                            onClick={() => removeFromCart(item.productId)}
-                            className="text-red-500 hover:text-red-400 transition-colors"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="border-t border-gold-600/20 pt-4">
-                    <div className="flex justify-between text-white font-semibold text-lg mb-4">
-                      <span>Total</span>
-                      <span className="text-gold-500">{formatPrice(getCartTotal())}</span>
-                    </div>
-
-                    <button
-                      onClick={createWholesaleOrder}
-                      disabled={orderLoading}
-                      className="w-full flex items-center justify-center px-4 py-3 bg-gold-600 text-dark-900 font-semibold rounded-lg hover:bg-gold-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    >
-                      {orderLoading ? (
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-dark-900"></div>
-                      ) : (
-                        'Place Wholesale Order'
-                      )}
-                    </button>
-                  </div>
-                </>
-              )}
-
-              <div className="mt-6 p-4 bg-gold-600/10 border border-gold-600/30 rounded-lg">
-                <h4 className="text-white font-semibold mb-2">Wholesale Information</h4>
-                <ul className="text-gray-300 text-sm space-y-1">
-                  <li>• Minimum order: 12 units per product</li>
-                  <li>• Bulk discounts available</li>
-                  <li>• Delivery within 3-5 business days</li>
-                  <li>• Payment terms: 50% upfront</li>
-                </ul>
               </div>
             </div>
           </div>
-        </div>
+
+          <div className="products-toolbar">
+            <label className="products-toolbar__search">
+              <Search size={18} strokeWidth={1.9} />
+              <input
+                type="text"
+                placeholder="Search for gin, reserve bottles, citrus, coffee, and more..."
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+              />
+            </label>
+
+            <label className="products-toolbar__filter">
+              <Filter size={18} strokeWidth={1.9} />
+              <select
+                value={selectedCategory}
+                onChange={(event) => setSelectedCategory(event.target.value)}
+              >
+                <option value="">All categories</option>
+                {categories.map((category) => (
+                  <option key={category} value={category}>
+                    {formatLabel(category)}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <div className="products-toolbar__summary">
+              <strong>{hasResults ? activeProducts.length : 0}</strong>
+              <span>{hasResults ? 'matching bottles' : 'No matches yet'}</span>
+            </div>
+          </div>
+
+          <div className="products-categories" aria-label="Category shortcuts">
+            {categoryOptions.map(({ key, label, description, icon: Icon }) => (
+              <button
+                key={key || 'all'}
+                type="button"
+                className={`products-categories__item ${selectedCategory === key ? 'is-active' : ''}`}
+                onClick={() => setSelectedCategory(key)}
+              >
+                <span className="products-categories__icon">
+                  <Icon size={20} strokeWidth={1.8} />
+                </span>
+                <strong>{label}</strong>
+                <span>{description}</span>
+              </button>
+            ))}
+          </div>
+
+          <div className="products-market-strip" aria-label="Collection summary">
+            <div className="products-market-strip__card">
+              <strong>{products.length}</strong>
+              <span>Products available for wholesale</span>
+            </div>
+            <div className="products-market-strip__card">
+              <strong>{inventoryCount}</strong>
+              <span>Units in wholesale-ready stock</span>
+            </div>
+            <div className="products-market-strip__card">
+              <strong>{featuredCount}</strong>
+              <span>Featured wholesale products</span>
+            </div>
+          </div>
+        </section>
+
+        <section className="products-section">
+          <div className="products-section__heading">
+            <div>
+              <p className="products-section__eyebrow">Wholesale Catalog</p>
+              <h2>Exclusive products for partners.</h2>
+            </div>
+
+            <Link to="/contact" className="products-section__link">
+              Need bulk pricing?
+              <ArrowRight size={16} strokeWidth={1.9} />
+            </Link>
+          </div>
+
+          <div className="products-deals">
+            {showcaseProducts.map((product, index) => {
+              const wholesalePrice = product.wholesalePrice || product.price;
+              
+              return (
+                <article
+                  key={`${product._id}-deal`}
+                  className={`products-deal-card products-deal-card--${product.accent || 'default'} products-deal-card--${
+                    index + 1
+                  }`}
+                >
+                  <div className="products-deal-card__copy">
+                    <span className="products-deal-card__offer">Wholesale</span>
+                    <h3>{product.name}</h3>
+                    <p>{product.promo}</p>
+                    <div className="products-deal-card__meta">
+                      <span>{formatPrice(wholesalePrice)}</span>
+                      <span>{product.abv}% ABV</span>
+                    </div>
+                  </div>
+
+                  <img
+                    src={product.images[0]?.url}
+                    alt={product.images[0]?.alt || product.name}
+                    className="products-deal-card__image"
+                  />
+                </article>
+              );
+            })}
+          </div>
+        </section>
+
+        <section className="products-promo">
+          <div className="products-promo__copy">
+            <strong>Ready to place your wholesale order?</strong>
+            <span>
+              Add products to your cart and submit your bulk order for priority processing and 
+              dedicated wholesale support.
+            </span>
+          </div>
+
+          <div className="products-promo__actions">
+            <div className="wholesale-cart-summary">
+              <div className="wholesale-cart-items">
+                {cartItems.length === 0 ? (
+                  <p>No items in wholesale cart</p>
+                ) : (
+                  <div className="wholesale-cart-list">
+                    {cartItems.map((item) => (
+                      <div key={item.productId} className="wholesale-cart-item">
+                        <span className="wholesale-cart-name">{item.name}</span>
+                        <div className="wholesale-cart-controls">
+                          <button
+                            onClick={() => updateQuantity(item.productId, item.quantity - 1)}
+                            className="wholesale-cart-btn"
+                          >
+                            <Minus size={14} />
+                          </button>
+                          <span className="wholesale-cart-quantity">{item.quantity}</span>
+                          <button
+                            onClick={() => updateQuantity(item.productId, item.quantity + 1)}
+                            className="wholesale-cart-btn"
+                          >
+                            <Plus size={14} />
+                          </button>
+                          <button
+                            onClick={() => removeFromCart(item.productId)}
+                            className="wholesale-cart-remove"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                        <span className="wholesale-cart-price">{formatPrice(item.price * item.quantity)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              
+              {cartItems.length > 0 && (
+                <div className="wholesale-cart-total">
+                  <strong>Total: {formatPrice(getCartTotal())}</strong>
+                  <button
+                    onClick={createWholesaleOrder}
+                    disabled={orderLoading}
+                    className="products-showcase__cta products-showcase__cta--primary"
+                  >
+                    {orderLoading ? 'Processing...' : 'Place Wholesale Order'}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+
+        <section className="products-section">
+          <div className="products-section__heading">
+            <div>
+              <p className="products-section__eyebrow">Full Wholesale Catalog</p>
+              <h2>Complete product collection.</h2>
+            </div>
+
+            <div className="products-section__note">
+              <MapPin size={16} strokeWidth={1.8} />
+              <span>Masaka roots. Ugandan botanicals. Bottled with character.</span>
+            </div>
+          </div>
+
+          {loading ? (
+            <div className="products-empty">
+              <Package size={42} strokeWidth={1.7} />
+              <h3>Loading wholesale catalog...</h3>
+              <p>Fetching real products from the backend.</p>
+            </div>
+          ) : hasResults ? (
+            <div className="products-grid">
+              {popularProducts.map((product) => {
+                const wholesalePrice = product.wholesalePrice || product.price;
+
+                return (
+                  <article
+                    key={product._id}
+                    className={`products-card products-card--${product.accent || 'default'}`}
+                  >
+                    <div className="products-card__media">
+                      <span className="products-card__badge">Wholesale</span>
+                      <img
+                        src={product.images[0]?.url}
+                        alt={product.images[0]?.alt || product.name}
+                        className="products-card__image"
+                      />
+                    </div>
+
+                    <div className="products-card__body">
+                      <div className="products-card__header">
+                        <span className="products-card__category">
+                          {formatLabel(product.category)}
+                        </span>
+                        <span className="products-card__stock">{product.stock} in stock</span>
+                      </div>
+
+                      <h3>{product.name}</h3>
+                      <p>{product.shortDescription}</p>
+
+                      <div className="products-card__rating">
+                        <div className="products-card__stars" aria-hidden="true">
+                          {[...Array(5)].map((_, index) => (
+                            <Star
+                              key={`${product._id}-star-${index}`}
+                              className={index < 4 ? 'is-filled' : ''}
+                              size={15}
+                              strokeWidth={1.8}
+                            />
+                          ))}
+                        </div>
+                        <span>{product.rating.toFixed(1)} cellar score</span>
+                      </div>
+
+                      <div className="products-card__facts">
+                        <div>
+                          <span>ABV</span>
+                          <strong>{product.abv}%</strong>
+                        </div>
+                        <div>
+                          <span>Volume</span>
+                          <strong>{product.volume}ml</strong>
+                        </div>
+                        <div>
+                          <span>Wholesale</span>
+                          <strong>{formatPrice(wholesalePrice)}</strong>
+                        </div>
+                      </div>
+
+                      <div className="products-card__footer">
+                        <div className="products-card__price">
+                          <strong>{formatPrice(wholesalePrice)}</strong>
+                          <span>Wholesale rate</span>
+                        </div>
+
+                        <div className="products-card__actions">
+                          <button
+                            type="button"
+                            onClick={() => addToCart(product)}
+                            className="products-card__button"
+                          >
+                            <ShoppingCart size={16} strokeWidth={1.9} />
+                            Add to Order
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="products-empty">
+              <Package size={42} strokeWidth={1.7} />
+              <h3>{catalogError ? 'Live catalog unavailable.' : 'No bottles match that search yet.'}</h3>
+              <p>
+                {catalogError
+                  ? catalogError
+                  : 'Try a broader search term or switch back to all categories.'}
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  if (catalogError) {
+                    window.location.reload();
+                    return;
+                  }
+
+                  setSearchTerm('');
+                  setSelectedCategory('');
+                }}
+              >
+                {catalogError ? 'Retry loading live catalog' : 'Reset the catalog view'}
+              </button>
+            </div>
+          )}
+
+          {message && (
+            <div className={`products-notice is-${message.includes('success') ? 'success' : 'error'}`}>
+              {message}
+            </div>
+          )}
+        </section>
       </div>
     </div>
   );

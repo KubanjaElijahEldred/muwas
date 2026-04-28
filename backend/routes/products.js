@@ -1,5 +1,8 @@
 const express = require('express');
 const mongoose = require('mongoose');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 const Product = require('../models/Product');
 const { auth, authorize } = require('../middleware/auth');
 const {
@@ -13,6 +16,40 @@ const {
 const router = express.Router();
 const allowedCategories = new Set(['gin', 'vodka', 'rum', 'whiskey', 'liqueur', 'other']);
 const isDatabaseReady = () => mongoose.connection.readyState === 1;
+
+// Configure multer for product image uploads
+const uploadsDir = path.join(__dirname, '../uploads/products');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadsDir);
+  },
+  filename: (req, file, cb) => {
+    // Generate unique filename
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, `product-${uniqueSuffix}${path.extname(file.originalname)}`);
+  }
+});
+
+const fileFilter = (req, file, cb) => {
+  // Accept only image files
+  if (file.mimetype.startsWith('image/')) {
+    cb(null, true);
+  } else {
+    cb(new Error('Only image files are allowed'), false);
+  }
+};
+
+const upload = multer({
+  storage,
+  fileFilter,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB limit
+  }
+});
 
 const normalizeText = (value = '') => String(value || '').trim();
 const parseNumber = (value, fallback = 0) => {
@@ -323,7 +360,7 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-router.post('/', auth, authorize('admin'), async (req, res) => {
+router.post('/', auth, authorize('admin'), upload.single('productImage'), async (req, res) => {
   try {
     if (!isDatabaseReady()) {
       const candidate = buildFallbackProduct(req.body, {
@@ -346,7 +383,32 @@ router.post('/', auth, authorize('admin'), async (req, res) => {
       });
     }
 
-    const product = new Product(req.body);
+    // Handle uploaded image
+    let productData = { ...req.body };
+    
+    if (req.file) {
+      // Parse images array if it's a string (from FormData)
+      let images = [];
+      if (req.body.images) {
+        try {
+          images = typeof req.body.images === 'string' 
+            ? JSON.parse(req.body.images) 
+            : req.body.images;
+        } catch (e) {
+          images = [];
+        }
+      }
+      
+      // Add the uploaded image URL to the images array
+      images[0] = {
+        url: `/uploads/products/${req.file.filename}`,
+        alt: images[0]?.alt || 'Product image'
+      };
+      
+      productData.images = images;
+    }
+
+    const product = new Product(productData);
     await product.save();
 
     return res.status(201).json({
@@ -359,7 +421,7 @@ router.post('/', auth, authorize('admin'), async (req, res) => {
   }
 });
 
-router.put('/:id', auth, authorize('admin'), async (req, res) => {
+router.put('/:id', auth, authorize('admin'), upload.single('productImage'), async (req, res) => {
   try {
     if (!isDatabaseReady()) {
       const currentProduct = getFallbackCatalog().find(
@@ -386,9 +448,34 @@ router.put('/:id', auth, authorize('admin'), async (req, res) => {
       });
     }
 
+    // Handle uploaded image
+    let updateData = { ...req.body };
+    
+    if (req.file) {
+      // Parse images array if it's a string (from FormData)
+      let images = [];
+      if (req.body.images) {
+        try {
+          images = typeof req.body.images === 'string' 
+            ? JSON.parse(req.body.images) 
+            : req.body.images;
+        } catch (e) {
+          images = [];
+        }
+      }
+      
+      // Add the uploaded image URL to the images array
+      images[0] = {
+        url: `/uploads/products/${req.file.filename}`,
+        alt: images[0]?.alt || 'Product image'
+      };
+      
+      updateData.images = images;
+    }
+
     const product = await Product.findByIdAndUpdate(
       req.params.id,
-      req.body,
+      updateData,
       { new: true, runValidators: true }
     );
 

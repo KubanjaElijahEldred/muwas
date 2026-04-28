@@ -1,7 +1,28 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import {
+  ArrowRight,
+  Filter,
+  Package,
+  Search,
+  ShoppingCart,
+  Calendar,
+  MapPin,
+  Phone,
+  Mail,
+  Clock,
+  CheckCircle,
+  Truck,
+  AlertTriangle,
+  X,
+} from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { ShoppingBag, Package, Calendar, MapPin, Phone, Mail } from 'lucide-react';
+import { formatPrice } from '../utils/productPresentation';
+
+const formatLabel = (str) => {
+  if (!str) return '';
+  return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+};
 
 const Orders = () => {
   const { user, api } = useAuth();
@@ -9,6 +30,14 @@ const Orders = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedStatus, setSelectedStatus] = useState('');
+  const [activeShowcaseIndex, setActiveShowcaseIndex] = useState(0);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    setSearchTerm(params.get('search') || '');
+  }, [location.search]);
 
   useEffect(() => {
     fetchOrders();
@@ -17,12 +46,106 @@ const Orders = () => {
   const fetchOrders = async () => {
     try {
       const response = await api.get('/orders/my-orders');
-      setOrders(response.data.orders);
+      setOrders(response.data.orders || []);
     } catch (error) {
-      setError('Failed to fetch orders');
-      console.error('Error fetching orders:', error);
+      if (error.response?.status === 401) {
+        setError('Please log in to view your orders');
+      } else if (error.response?.status === 500) {
+        setError('Server error. Please try again later.');
+      } else {
+        setError('Failed to fetch orders');
+      }
+      console.error('Error fetching orders:', error.response?.data || error.message);
+      setOrders([]); // Clear orders on error
     } finally {
       setLoading(false);
+    }
+  };
+
+  // CRUD Operations for Orders
+  const createOrder = async (orderData) => {
+    try {
+      const response = await api.post('/orders', orderData);
+      if (response.data.order) {
+        setOrders(prev => [response.data.order, ...prev]);
+        return response.data.order;
+      }
+      throw new Error('Failed to create order');
+    } catch (error) {
+      console.error('Error creating order:', error.response?.data || error.message);
+      throw error;
+    }
+  };
+
+  const updateOrder = async (orderId, updateData) => {
+    try {
+      const response = await api.put(`/orders/${orderId}`, updateData);
+      if (response.data.order) {
+        setOrders(prev => prev.map(order => 
+          order._id === orderId ? response.data.order : order
+        ));
+        return response.data.order;
+      }
+      throw new Error('Failed to update order');
+    } catch (error) {
+      console.error('Error updating order:', error.response?.data || error.message);
+      throw error;
+    }
+  };
+
+  const deleteOrder = async (orderId) => {
+    try {
+      await api.delete(`/orders/${orderId}`);
+      setOrders(prev => prev.filter(order => order._id !== orderId));
+      return true;
+    } catch (error) {
+      console.error('Error deleting order:', error.response?.data || error.message);
+      throw error;
+    }
+  };
+
+  const updateOrderStatus = async (orderId, status) => {
+    try {
+      const response = await api.patch(`/orders/${orderId}/status`, { status });
+      if (response.data.order) {
+        setOrders(prev => prev.map(order => 
+          order._id === orderId ? response.data.order : order
+        ));
+        return response.data.order;
+      }
+      throw new Error('Failed to update order status');
+    } catch (error) {
+      console.error('Error updating order status:', error.response?.data || error.message);
+      throw error;
+    }
+  };
+
+  const statusOptions = [
+    { key: '', label: 'All Orders', description: 'View all your orders', icon: Package },
+    { key: 'pending', label: 'Pending', description: 'Orders awaiting confirmation', icon: Clock },
+    { key: 'confirmed', label: 'Confirmed', description: 'Orders confirmed and being prepared', icon: CheckCircle },
+    { key: 'processing', label: 'Processing', description: 'Orders being prepared for shipment', icon: AlertTriangle },
+    { key: 'shipped', label: 'Shipped', description: 'Orders on their way to you', icon: Truck },
+    { key: 'delivered', label: 'Delivered', description: 'Orders successfully delivered', icon: CheckCircle },
+    { key: 'cancelled', label: 'Cancelled', description: 'Orders that were cancelled', icon: X }
+  ];
+
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case 'pending':
+        return Clock;
+      case 'confirmed':
+        return CheckCircle;
+      case 'processing':
+        return Package;
+      case 'shipped':
+        return Truck;
+      case 'delivered':
+        return CheckCircle;
+      case 'cancelled':
+        return AlertTriangle;
+      default:
+        return Package;
     }
   };
 
@@ -60,174 +183,387 @@ const Orders = () => {
     }
   };
 
+  const filteredOrders = orders.filter((order) => {
+    const haystack = [
+      order.orderNumber,
+      order.status,
+      order.paymentStatus,
+      order.products?.map(p => p.productId?.name).join(' ')
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase();
+
+    const matchesSearch = haystack.includes(searchTerm.toLowerCase());
+    const matchesStatus = !selectedStatus || order.status === selectedStatus;
+
+    return matchesSearch && matchesStatus;
+  });
+
+  const activeOrders = filteredOrders.length > 0 ? filteredOrders : orders;
+  const hasResults = activeOrders.length > 0;
+  const showcaseOrders = activeOrders.slice(0, 3);
+
+  useEffect(() => {
+    setActiveShowcaseIndex(0);
+  }, [showcaseOrders.length]);
+
+  useEffect(() => {
+    if (showcaseOrders.length <= 1) {
+      return undefined;
+    }
+
+    const slideTimer = window.setInterval(() => {
+      setActiveShowcaseIndex((currentIndex) => (currentIndex + 1) % showcaseOrders.length);
+    }, 4200);
+
+    return () => {
+      window.clearInterval(slideTimer);
+    };
+  }, [showcaseOrders.length]);
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-dark-900 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gold-500"></div>
+      <div className="products-page">
+        <div className="products-page__inner">
+          <div className="products-empty">
+            <Package size={42} strokeWidth={1.7} />
+            <h3>Loading your orders...</h3>
+            <p>Fetching order history from the backend.</p>
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-dark-900 py-12">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-serif font-bold text-white">My Orders</h1>
-          <Link
-            to="/products"
-            className="inline-flex items-center px-4 py-2 bg-gold-600 text-dark-900 font-medium rounded-lg hover:bg-gold-500 transition-colors"
-          >
-            <ShoppingBag className="w-4 h-4 mr-2" />
-            Shop More
-          </Link>
+    <div className="products-page">
+      <div className="products-page__inner">
+        {/* Skip the hero section - start directly with toolbar */}
+        <div className="products-toolbar">
+          <label className="products-toolbar__search">
+            <Search size={18} strokeWidth={1.9} />
+            <input
+              type="text"
+              placeholder="Search by order number, status, or product name..."
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+            />
+          </label>
+
+          <label className="products-toolbar__filter">
+            <Filter size={18} strokeWidth={1.9} />
+            <select
+              value={selectedStatus}
+              onChange={(event) => setSelectedStatus(event.target.value)}
+            >
+              <option value="">All statuses</option>
+              {statusOptions.slice(1).map((status) => (
+                <option key={status.key} value={status.key}>
+                  {status.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <div className="products-toolbar__summary">
+            <strong>{hasResults ? activeOrders.length : 0}</strong>
+            <span>{hasResults ? 'orders found' : 'No matching orders'}</span>
+          </div>
+        </div>
+
+        <div className="products-categories" aria-label="Status shortcuts">
+          {statusOptions.map(({ key, label, description, icon: Icon }) => (
+            <button
+              key={key || 'all'}
+              type="button"
+              className={`products-categories__item ${selectedStatus === key ? 'is-active' : ''}`}
+              onClick={() => setSelectedStatus(key)}
+            >
+              <span className="products-categories__icon">
+                <Icon size={20} strokeWidth={1.8} />
+              </span>
+              <strong>{label}</strong>
+              <span>{description}</span>
+            </button>
+          ))}
+        </div>
+
+        <div className="products-market-strip" aria-label="Order summary">
+          <div className="products-market-strip__card">
+            <strong>{orders.length}</strong>
+            <span>Total orders placed</span>
+          </div>
+          <div className="products-market-strip__card">
+            <strong>{orders.filter(o => o.status === 'delivered').length}</strong>
+            <span>Successfully delivered</span>
+          </div>
+          <div className="products-market-strip__card">
+            <strong>{orders.filter(o => o.status === 'pending').length}</strong>
+            <span>Awaiting confirmation</span>
+          </div>
         </div>
 
         {error && (
-          <div className="bg-red-900/50 border border-red-600 text-red-200 px-4 py-3 rounded-lg mb-6">
+          <div className="products-notice is-error">
             {error}
           </div>
         )}
 
         {location.state?.message && (
-          <div className="bg-green-900/40 border border-green-600 text-green-100 px-4 py-3 rounded-lg mb-6">
+          <div className="products-notice is-success">
             {location.state.message}
           </div>
         )}
 
         {orders.length === 0 ? (
-          <div className="text-center py-12">
-            <Package className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-            <h2 className="text-xl font-semibold text-white mb-2">No orders yet</h2>
-            <p className="text-gray-400 mb-6">
-              You haven't placed any orders. Start shopping to see your orders here.
-            </p>
-            <Link
-              to="/products"
-              className="inline-flex items-center px-6 py-3 bg-gold-600 text-dark-900 font-semibold rounded-lg hover:bg-gold-500 transition-colors"
-            >
-              Start Shopping
-            </Link>
-          </div>
+          <section className="products-section">
+            <div className="products-section__heading">
+              <div>
+                <p className="products-section__eyebrow">No Orders Yet</p>
+                <h2>Start your Muwas journey.</h2>
+              </div>
+
+              <Link to="/products" className="products-section__link">
+                Browse products
+                <ArrowRight size={16} strokeWidth={1.9} />
+              </Link>
+            </div>
+
+            <div className="products-empty">
+              <Package size={42} strokeWidth={1.7} />
+              <h3>No orders found</h3>
+              <p>You haven't placed any orders yet. Start shopping to see your orders here.</p>
+              <Link to="/products" className="products-showcase__cta products-showcase__cta--primary">
+                <ShoppingCart size={16} strokeWidth={1.9} />
+                Start Shopping
+              </Link>
+            </div>
+          </section>
         ) : (
-          <div className="space-y-6">
-            {orders.map((order) => (
-              <div key={order._id} className="bg-dark-800 rounded-lg border border-gold-600/20 overflow-hidden">
-                <div className="p-6">
-                  <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
-                    <div>
-                      <h3 className="text-lg font-semibold text-white mb-1">
-                        Order #{order.orderNumber}
-                      </h3>
-                      <p className="text-gray-400 text-sm">
-                        Placed on {new Date(order.createdAt).toLocaleDateString()}
-                      </p>
-                    </div>
-                    <div className="mt-4 md:mt-0 text-right">
-                      <p className="text-2xl font-bold text-gold-500">
-                        UGX {order.totalAmount.toLocaleString()}
-                      </p>
-                    </div>
-                  </div>
+          <>
+            <section className="products-section">
+              <div className="products-section__heading">
+                <div>
+                  <p className="products-section__eyebrow">Recent Orders</p>
+                  <h2>Your order history.</h2>
+                </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                    <div>
-                      <p className="text-gray-400 text-sm mb-1">Status</p>
-                      <p className={`font-medium capitalize ${getStatusColor(order.status)}`}>
-                        {order.status}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-gray-400 text-sm mb-1">Payment</p>
-                      <p className={`font-medium capitalize ${getPaymentStatusColor(order.paymentStatus)}`}>
-                        {order.paymentStatus}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-gray-400 text-sm mb-1">Delivery Method</p>
-                      <p className="font-medium text-white capitalize">
-                        {order.deliveryMethod.replace('_', ' ')}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-gray-400 text-sm mb-1">Payment Method</p>
-                      <p className="font-medium text-white capitalize">
-                        {(order.paymentProvider || order.paymentMethod).replace('_', ' ')}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="border-t border-gold-600/20 pt-4">
-                    <h4 className="text-white font-medium mb-3">Order Items</h4>
-                    <div className="space-y-2">
-                      {order.products.map((item, index) => (
-                        <div key={index} className="flex items-center justify-between">
-                          <div className="flex items-center space-x-3">
-                            <div className="w-12 h-12 bg-dark-700 rounded-lg flex items-center justify-center">
-                              {item.productId?.images?.[0]?.url ? (
-                                <img
-                                  src={item.productId.images[0].url}
-                                  alt={item.productId.name}
-                                  className="w-full h-full object-cover rounded-lg"
-                                />
-                              ) : (
-                                <Package className="w-6 h-6 text-gray-500" />
-                              )}
-                            </div>
-                            <div>
-                              <p className="text-white font-medium">
-                                {item.productId?.name || 'Product'}
-                              </p>
-                              <p className="text-gray-400 text-sm">
-                                Quantity: {item.quantity}
-                              </p>
-                            </div>
-                          </div>
-                          <p className="text-white font-medium">
-                            UGX {(item.price * item.quantity).toLocaleString()}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="border-t border-gold-600/20 pt-4 mt-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <h4 className="text-white font-medium mb-2">Shipping Address</h4>
-                        <div className="space-y-1 text-sm">
-                          <p className="text-gray-300">{order.shippingAddress?.street}</p>
-                          <p className="text-gray-300">
-                            {order.shippingAddress?.city}, {order.shippingAddress?.country}
-                          </p>
-                          <div className="flex items-center text-gray-300">
-                            <Phone className="w-4 h-4 mr-1" />
-                            {order.shippingAddress?.phone}
-                          </div>
-                        </div>
-                      </div>
-                      
-                      {order.trackingNumber && (
-                        <div>
-                          <h4 className="text-white font-medium mb-2">Tracking Information</h4>
-                          <p className="text-gray-300 text-sm">
-                            Tracking Number: <span className="text-gold-500">{order.trackingNumber}</span>
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {order.notes && (
-                    <div className="border-t border-gold-600/20 pt-4 mt-4">
-                      <h4 className="text-white font-medium mb-2">Order Notes</h4>
-                      <p className="text-gray-300 text-sm">{order.notes}</p>
-                    </div>
-                  )}
+                <div className="products-section__note">
+                  <Calendar size={16} strokeWidth={1.8} />
+                  <span>Track your orders from placement to delivery.</span>
                 </div>
               </div>
-            ))}
-          </div>
+
+              {hasResults ? (
+                <div className="products-grid">
+                  {activeOrders.map((order) => {
+                    const StatusIcon = getStatusIcon(order.status);
+                    
+                    return (
+                      <article
+                        key={order._id}
+                        className={`products-card products-card--${order.status === 'delivered' ? 'green' : order.status === 'cancelled' ? 'red' : 'default'}`}
+                      >
+                        <div className="products-card__media">
+                          <span className="products-card__badge">{formatLabel(order.status)}</span>
+                          <div className="products-card__order-icon">
+                            <StatusIcon size={48} strokeWidth={1.8} />
+                          </div>
+                        </div>
+
+                        <div className="products-card__body">
+                          <div className="products-card__header">
+                            <span className="products-card__category">
+                              {formatLabel(order.status)}
+                            </span>
+                            <span className="products-card__stock">
+                              {new Date(order.createdAt).toLocaleDateString()}
+                            </span>
+                          </div>
+
+                          <h3>Order #{order.orderNumber}</h3>
+                          <p>{order.products?.length || 0} items</p>
+
+                          <div className="products-card__rating">
+                            <div className="products-card__stars" aria-hidden="true">
+                              {[...Array(5)].map((_, index) => (
+                                <CheckCircle
+                                  key={`${order._id}-star-${index}`}
+                                  className={index < 3 ? 'is-filled' : ''}
+                                  size={15}
+                                  strokeWidth={1.8}
+                                />
+                              ))}
+                            </div>
+                            <span>{formatLabel(order.paymentStatus)}</span>
+                          </div>
+
+                          <div className="products-card__facts">
+                            <div>
+                              <span>Status</span>
+                              <strong>{formatLabel(order.status)}</strong>
+                            </div>
+                            <div>
+                              <span>Total</span>
+                              <strong>{formatPrice(order.totalAmount)}</strong>
+                            </div>
+                            <div>
+                              <span>Items</span>
+                              <strong>{order.products?.length || 0}</strong>
+                            </div>
+                          </div>
+
+                          <div className="products-card__footer">
+                            <div className="products-card__price">
+                              <strong>{formatPrice(order.totalAmount)}</strong>
+                              <span>{formatLabel(order.paymentStatus)}</span>
+                            </div>
+
+                            <div className="products-card__actions">
+                              <button
+                                type="button"
+                                className="products-card__button"
+                                onClick={() => {
+                                  // View order details
+                                  console.log('View order details:', order._id);
+                                }}
+                              >
+                                <Package size={16} strokeWidth={1.9} />
+                                View Details
+                              </button>
+                              
+                              {order.status !== 'delivered' && order.status !== 'cancelled' && (
+                                <button
+                                  type="button"
+                                  className="products-card__button"
+                                  onClick={() => {
+                                    // Update order status
+                                    const nextStatus = order.status === 'pending' ? 'confirmed' : 
+                                                      order.status === 'confirmed' ? 'processing' :
+                                                      order.status === 'processing' ? 'shipped' : 'delivered';
+                                    updateOrderStatus(order._id, nextStatus);
+                                  }}
+                                >
+                                  <CheckCircle size={16} strokeWidth={1.9} />
+                                  Update Status
+                                </button>
+                              )}
+                              
+                              {order.status === 'pending' && (
+                                <button
+                                  type="button"
+                                  className="products-card__button products-card__button--danger"
+                                  onClick={() => {
+                                    // Cancel order
+                                    if (window.confirm('Are you sure you want to cancel this order?')) {
+                                      updateOrderStatus(order._id, 'cancelled');
+                                    }
+                                  }}
+                                >
+                                  <X size={16} strokeWidth={1.9} />
+                                  Cancel
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="products-empty">
+                  <Package size={42} strokeWidth={1.7} />
+                  <h3>No orders match your search</h3>
+                  <p>Try adjusting your search terms or status filter.</p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchTerm('');
+                      setSelectedStatus('');
+                    }}
+                  >
+                    Reset filters
+                  </button>
+                </div>
+              )}
+            </section>
+
+            <section className="products-section">
+              <div className="products-section__heading">
+                <div>
+                  <p className="products-section__eyebrow">Order Details</p>
+                  <h2>Complete order information.</h2>
+                </div>
+              </div>
+
+              <div className="products-deals">
+                {showcaseOrders.map((order, index) => {
+                  const StatusIcon = getStatusIcon(order.status);
+                  
+                  return (
+                    <article
+                      key={`${order._id}-deal`}
+                      className={`products-deal-card products-deal-card--${order.status === 'delivered' ? 'green' : order.status === 'cancelled' ? 'red' : 'default'} products-deal-card--${
+                        index + 1
+                      }`}
+                    >
+                      <div className="products-deal-card__copy">
+                        <span className="products-deal-card__offer">
+                          <StatusIcon size={14} strokeWidth={1.8} />
+                          {formatLabel(order.status)}
+                        </span>
+                        <h3>Order #{order.orderNumber}</h3>
+                        <p>{order.products?.length || 0} items • {formatLabel(order.paymentStatus)}</p>
+                        <div className="products-deal-card__meta">
+                          <span>{formatPrice(order.totalAmount)}</span>
+                          <span>{new Date(order.createdAt).toLocaleDateString()}</span>
+                        </div>
+                      </div>
+
+                      <div className="products-deal-card__order-summary">
+                        <div className="products-deal-card__items">
+                          {order.products?.slice(0, 2).map((item, idx) => (
+                            <div key={idx} className="products-deal-card__item">
+                              <span>{item.productId?.name || 'Product'}</span>
+                              <small>Qty: {item.quantity}</small>
+                            </div>
+                          ))}
+                          {order.products?.length > 2 && (
+                            <div className="products-deal-card__more">
+                              +{order.products.length - 2} more items
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            </section>
+          </>
         )}
+
+        <section className="products-promo">
+          <div className="products-promo__copy">
+            <strong>Need to place another order?</strong>
+            <span>
+              Browse our premium collection of craft spirits and place your next order 
+              for fast delivery across Uganda.
+            </span>
+          </div>
+
+          <div className="products-promo__actions">
+            <Link to="/products" className="products-showcase__cta products-showcase__cta--primary">
+              <ShoppingCart size={16} strokeWidth={1.9} />
+              Shop More
+            </Link>
+            <Link to="/contact" className="products-showcase__cta">
+              Contact Support
+            </Link>
+          </div>
+        </section>
       </div>
     </div>
   );

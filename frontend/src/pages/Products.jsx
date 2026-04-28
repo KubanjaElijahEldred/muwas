@@ -96,10 +96,8 @@ const Products = () => {
       } catch (error) {
         console.error('Error fetching products:', error);
         if (isMounted) {
-          setProducts(normalizeProductCatalog(fallbackProducts));
-          setCatalogError(
-            'Unable to load live catalog. Showing fallback bottles while the API reconnects.'
-          );
+          setProducts([]);
+          setCatalogError('Unable to load products. Please try again later.');
         }
       } finally {
         if (isMounted) {

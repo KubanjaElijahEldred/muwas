@@ -1,13 +1,41 @@
-import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import {
+  ArrowRight,
+  Filter,
+  Package,
+  Search,
+  User,
+  Edit,
+  Save,
+  X,
+  Camera,
+  Upload,
+  Mail,
+  Phone,
+  MapPin,
+  Calendar,
+  ShieldCheck,
+  Star,
+  Settings,
+  LogOut,
+  ChevronRight,
+  Award,
+  ShoppingBag,
+} from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { User, Mail, Phone, MapPin, Edit, Save, X } from 'lucide-react';
 
 const Profile = () => {
   const { user, updateProfile } = useAuth();
+  const location = useLocation();
+  const fileInputRef = useRef(null);
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
+  const [profileImage, setProfileImage] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
+  const [activeSection, setActiveSection] = useState('overview');
+  const messageTimeoutRef = useRef(null);
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -18,6 +46,13 @@ const Profile = () => {
       postalCode: ''
     }
   });
+
+  const profileSections = [
+    { key: 'overview', label: 'Overview', description: 'Basic profile information', icon: User },
+    { key: 'personal', label: 'Personal Info', description: 'Name and contact details', icon: Mail },
+    { key: 'address', label: 'Address', description: 'Shipping and billing address', icon: MapPin },
+    { key: 'security', label: 'Security', description: 'Account security settings', icon: ShieldCheck },
+  ];
 
   useEffect(() => {
     if (user) {
@@ -31,8 +66,78 @@ const Profile = () => {
           postalCode: user.address?.postalCode || ''
         }
       });
+      // Set existing profile image if available
+      if (user.profileImage) {
+        setImagePreview(user.profileImage);
+      }
     }
   }, [user]);
+
+  // Auto-hide messages after 5 seconds
+  useEffect(() => {
+    if (message) {
+      // Clear existing timeout
+      if (messageTimeoutRef.current) {
+        clearTimeout(messageTimeoutRef.current);
+      }
+      
+      // Set new timeout to hide message
+      messageTimeoutRef.current = setTimeout(() => {
+        setMessage('');
+      }, 5000);
+    }
+    
+    // Cleanup timeout on unmount
+    return () => {
+      if (messageTimeoutRef.current) {
+        clearTimeout(messageTimeoutRef.current);
+      }
+    };
+  }, [message]);
+
+  const handleImageUpload = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        setMessage('Please select an image file');
+        return;
+      }
+      
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        setMessage('Image size should be less than 5MB');
+        return;
+      }
+
+      setProfileImage(file);
+      
+      // Create preview
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setImagePreview(e.target.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleCameraCapture = () => {
+    // Create input for camera capture
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.capture = 'environment';
+    input.onchange = handleImageUpload;
+    input.click();
+  };
+
+  const removeProfileImage = () => {
+    setProfileImage(null);
+    setImagePreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -59,13 +164,47 @@ const Profile = () => {
     setLoading(true);
     setMessage('');
 
-    const result = await updateProfile(formData);
+    // Create FormData to handle file upload
+    const submitData = new FormData();
+    submitData.append('name', formData.name);
+    submitData.append('phone', formData.phone);
     
-    if (result.success) {
-      setMessage('Profile updated successfully!');
-      setIsEditing(false);
-    } else {
-      setMessage(result.message);
+    // Add address as JSON string for proper parsing
+    const addressData = {
+      street: formData.address.street,
+      city: formData.address.city,
+      country: formData.address.country,
+      postalCode: formData.address.postalCode
+    };
+    submitData.append('address', JSON.stringify(addressData));
+    
+    // Add profile image if changed
+    if (profileImage) {
+      submitData.append('profileImage', profileImage);
+    }
+
+    try {
+      const response = await fetch('/api/auth/profile', {
+        method: 'PUT',
+        body: submitData,
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      const result = await response.json();
+      
+      if (response.ok) {
+        setMessage('Profile updated successfully!');
+        setIsEditing(false);
+        // Update user context with new data
+        await updateProfile(formData);
+      } else {
+        setMessage(result.message || 'Failed to update profile');
+      }
+    } catch (error) {
+      setMessage('Failed to update profile');
+      console.error('Profile update error:', error);
     }
     
     setLoading(false);
@@ -73,6 +212,7 @@ const Profile = () => {
 
   const handleCancel = () => {
     setIsEditing(false);
+    setProfileImage(null);
     if (user) {
       setFormData({
         name: user.name || '',
@@ -84,244 +224,325 @@ const Profile = () => {
           postalCode: user.address?.postalCode || ''
         }
       });
+      // Restore original profile image
+      if (user.profileImage) {
+        setImagePreview(user.profileImage);
+      } else {
+        setImagePreview(null);
+      }
     }
   };
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-dark-900 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-gray-400 mb-4">Please log in to view your profile.</p>
-          <Link
-            to="/login"
-            className="inline-flex items-center px-6 py-3 bg-gold-600 text-dark-900 font-semibold rounded-lg hover:bg-gold-500 transition-colors"
-          >
-            Login
-          </Link>
+      <div className="products-page">
+        <div className="products-page__inner">
+          <div className="products-empty">
+            <User size={42} strokeWidth={1.7} />
+            <h3>Please log in to view your profile</h3>
+            <p>You need to be logged in to access your profile information.</p>
+            <Link to="/login" className="products-showcase__cta products-showcase__cta--primary">
+              Login to Your Account
+            </Link>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-dark-900 py-12">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-serif font-bold text-white">My Profile</h1>
-          {!isEditing && (
+    <div className="products-page">
+      <div className="products-page__inner">
+        {/* Skip the hero section - start directly with toolbar */}
+        <div className="products-toolbar">
+          <label className="products-toolbar__search">
+            <Search size={18} strokeWidth={1.9} />
+            <input
+              type="text"
+              placeholder="Search profile information..."
+              value=""
+              readOnly
+            />
+          </label>
+
+          <label className="products-toolbar__filter">
+            <Filter size={18} strokeWidth={1.9} />
+            <select value="" disabled>
+              <option value="">Profile sections</option>
+            </select>
+          </label>
+
+          <div className="products-toolbar__summary">
+            <strong>{profileSections.length}</strong>
+            <span>Profile sections available</span>
+          </div>
+        </div>
+
+        <div className="products-categories" aria-label="Profile sections">
+          {profileSections.map(({ key, label, description, icon: Icon }) => (
             <button
-              onClick={() => setIsEditing(true)}
-              className="inline-flex items-center px-4 py-2 bg-gold-600 text-dark-900 font-medium rounded-lg hover:bg-gold-500 transition-colors"
+              key={key}
+              type="button"
+              className={`products-categories__item ${activeSection === key ? 'is-active' : ''}`}
+              onClick={() => setActiveSection(key)}
             >
-              <Edit className="w-4 h-4 mr-2" />
-              Edit Profile
+              <span className="products-categories__icon">
+                <Icon size={20} strokeWidth={1.8} />
+              </span>
+              <strong>{label}</strong>
+              <span>{description}</span>
             </button>
-          )}
+          ))}
+        </div>
+
+        <div className="products-market-strip" aria-label="Profile summary">
+          <div className="products-market-strip__card">
+            <strong>{user.name}</strong>
+            <span>Account holder</span>
+          </div>
+          <div className="products-market-strip__card">
+            <strong>{user.role}</strong>
+            <span>Account type</span>
+          </div>
+          <div className="products-market-strip__card">
+            <strong>{new Date(user.createdAt).toLocaleDateString()}</strong>
+            <span>Member since</span>
+          </div>
         </div>
 
         {message && (
-          <div className={`mb-6 px-4 py-3 rounded-lg ${
-            message.includes('success') 
-              ? 'bg-green-900/50 border border-green-600 text-green-200' 
-              : 'bg-red-900/50 border border-red-600 text-red-200'
-          }`}>
+          <div className={`products-notice is-${message.includes('success') ? 'success' : 'error'}`}>
             {message}
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-1">
-            <div className="bg-dark-800 rounded-lg border border-gold-600/20 p-6 text-center">
-              <div className="w-24 h-24 bg-gold-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                <User className="w-12 h-12 text-dark-900" />
-              </div>
-              <h2 className="text-xl font-semibold text-white mb-2">{user.name}</h2>
-              <p className="text-gray-400 mb-4">{user.email}</p>
-              <div className="inline-flex items-center px-3 py-1 bg-gold-600/10 border border-gold-600/30 rounded-full">
-                <span className="text-gold-500 text-sm font-medium capitalize">
-                  {user.role}
-                </span>
-              </div>
+        {/* Save Status Indicator */}
+        {isEditing && (
+          <div className="profile-save-indicator">
+            <div className="profile-save-indicator__content">
+              <Save size={16} strokeWidth={1.8} />
+              <span>Editing mode - Don't forget to save your changes</span>
             </div>
           </div>
+        )}
 
-          <div className="lg:col-span-2">
-            <div className="bg-dark-800 rounded-lg border border-gold-600/20 p-6">
-              <h3 className="text-xl font-semibold text-white mb-6">Profile Information</h3>
-              
-              {isEditing ? (
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-1">
-                      Full Name
-                    </label>
-                    <input
-                      type="text"
-                      name="name"
-                      value={formData.name}
-                      onChange={handleChange}
-                      required
-                      className="w-full px-3 py-2 bg-dark-700 border border-gold-600/20 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-transparent"
+        {/* Profile Overview Section */}
+        <section className="products-section">
+          <div className="products-section__heading">
+            <div>
+              <p className="products-section__eyebrow">Profile Overview</p>
+              <h2>Your account information.</h2>
+            </div>
+
+            <button
+              onClick={() => setIsEditing(!isEditing)}
+              className="products-section__link"
+            >
+              {isEditing ? 'Cancel Editing' : 'Edit Profile'}
+              {isEditing ? <X size={16} strokeWidth={1.9} /> : <Edit size={16} strokeWidth={1.9} />}
+            </button>
+          </div>
+
+          <div className="products-grid">
+            {/* Profile Image Card */}
+            <article className="products-card products-card--default">
+              <div className="products-card__media">
+                <span className="products-card__badge">Profile</span>
+                <div className="products-card__profile-image">
+                  {imagePreview ? (
+                    <img
+                      src={imagePreview}
+                      alt="Profile"
+                      className="products-card__profile-img"
                     />
+                  ) : (
+                    <User size={48} strokeWidth={1.8} />
+                  )}
+                </div>
+              </div>
+
+              <div className="products-card__body">
+                <div className="products-card__header">
+                  <span className="products-card__category">Profile Picture</span>
+                  <span className="products-card__stock">Click to update</span>
+                </div>
+
+                <h3>{user.name}</h3>
+                <p>{user.email}</p>
+
+                <div className="products-card__rating">
+                  <div className="products-card__stars" aria-hidden="true">
+                    {[...Array(5)].map((_, index) => (
+                      <Star
+                        key={`${user._id}-star-${index}`}
+                        className={index < 4 ? 'is-filled' : ''}
+                        size={15}
+                        strokeWidth={1.8}
+                      />
+                    ))}
+                  </div>
+                  <span>Active member</span>
+                </div>
+
+                <div className="products-card__facts">
+                  <div>
+                    <span>Role</span>
+                    <strong>{user.role}</strong>
+                  </div>
+                  <div>
+                    <span>Member</span>
+                    <strong>{new Date(user.createdAt).toLocaleDateString()}</strong>
+                  </div>
+                  <div>
+                    <span>Status</span>
+                    <strong>Active</strong>
+                  </div>
+                </div>
+
+                <div className="products-card__footer">
+                  <div className="products-card__price">
+                    <strong>{user.name}</strong>
+                    <span>Account holder</span>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-1">
-                      Email Address
-                    </label>
+                  <div className="products-card__actions">
                     <input
+                      ref={fileInputRef}
+                      <button
+                        type="button"
+                        className="profile-image-upload__btn"
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        <Upload size={16} strokeWidth={1.8} />
+                        Upload Photo
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="profile-form__actions">
+                <button
+                  type="button"
+                  className="profile-form__btn btn-secondary"
+                  onClick={handleCancel}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="profile-form__btn btn-primary"
+                  disabled={loading}
+                >
+                  {loading ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
                       type="email"
                       value={user.email}
                       disabled
-                      className="w-full px-3 py-2 bg-dark-700 border border-gold-600/20 text-gray-500 rounded-lg cursor-not-allowed"
+                      className="form-input disabled"
                     />
-                    <p className="text-gray-500 text-xs mt-1">Email cannot be changed</p>
+                    <small>Email cannot be changed</small>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-1">
-                      Phone Number
-                    </label>
+                  <div className="form-group">
+                    <label>Phone Number</label>
                     <input
                       type="tel"
                       name="phone"
                       value={formData.phone}
                       onChange={handleChange}
-                      className="w-full px-3 py-2 bg-dark-700 border border-gold-600/20 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-transparent"
+                      className="form-input"
                       placeholder="+256 123 456 789"
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-1">
-                      Street Address
-                    </label>
+                  <div className="form-group">
+                    <label>Street Address</label>
                     <input
                       type="text"
                       name="address.street"
                       value={formData.address.street}
                       onChange={handleChange}
-                      className="w-full px-3 py-2 bg-dark-700 border border-gold-600/20 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-transparent"
+                      className="form-input"
                       placeholder="123 Main Street"
                     />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-1">
-                        City
-                      </label>
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>City</label>
                       <input
                         type="text"
                         name="address.city"
                         value={formData.address.city}
                         onChange={handleChange}
-                        className="w-full px-3 py-2 bg-dark-700 border border-gold-600/20 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-transparent"
+                        className="form-input"
                         placeholder="Kampala"
                       />
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-1">
-                        Postal Code
-                      </label>
+                    <div className="form-group">
+                      <label>Postal Code</label>
                       <input
                         type="text"
                         name="address.postalCode"
                         value={formData.address.postalCode}
                         onChange={handleChange}
-                        className="w-full px-3 py-2 bg-dark-700 border border-gold-600/20 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-transparent"
+                        className="form-input"
                         placeholder="256"
                       />
                     </div>
                   </div>
 
-                  <div className="flex space-x-4 pt-4">
+                  <div className="form-actions">
                     <button
                       type="submit"
                       disabled={loading}
-                      className="flex items-center px-4 py-2 bg-gold-600 text-dark-900 font-medium rounded-lg hover:bg-gold-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      className="products-showcase__cta products-showcase__cta--primary"
                     >
                       {loading ? (
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-dark-900 mr-2"></div>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2"></div>
                       ) : (
-                        <Save className="w-4 h-4 mr-2" />
+                        <Save size={16} strokeWidth={1.9} className="mr-2" />
                       )}
                       Save Changes
                     </button>
                     <button
                       type="button"
                       onClick={handleCancel}
-                      className="flex items-center px-4 py-2 border border-gold-600 text-gold-500 font-medium rounded-lg hover:bg-gold-600 hover:text-dark-900 transition-colors"
+                      className="products-showcase__cta"
                     >
-                      <X className="w-4 h-4 mr-2" />
+                      <X size={16} strokeWidth={1.9} className="mr-2" />
                       Cancel
                     </button>
                   </div>
                 </form>
-              ) : (
-                <div className="space-y-4">
-                  <div className="flex items-start space-x-3">
-                    <User className="w-5 h-5 text-gold-500 mt-1" />
-                    <div>
-                      <p className="text-gray-400 text-sm">Full Name</p>
-                      <p className="text-white">{user.name}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start space-x-3">
-                    <Mail className="w-5 h-5 text-gold-500 mt-1" />
-                    <div>
-                      <p className="text-gray-400 text-sm">Email Address</p>
-                      <p className="text-white">{user.email}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start space-x-3">
-                    <Phone className="w-5 h-5 text-gold-500 mt-1" />
-                    <div>
-                      <p className="text-gray-400 text-sm">Phone Number</p>
-                      <p className="text-white">{user.phone || 'Not provided'}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start space-x-3">
-                    <MapPin className="w-5 h-5 text-gold-500 mt-1" />
-                    <div>
-                      <p className="text-gray-400 text-sm">Address</p>
-                      <p className="text-white">
-                        {user.address?.street && (
-                          <>
-                            {user.address.street}<br />
-                          </>
-                        )}
-                        {user.address?.city && (
-                          <>
-                            {user.address.city}, {user.address?.country || 'Uganda'}
-                          </>
-                        )}
-                        {!user.address?.street && !user.address?.city && 'Not provided'}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="pt-4 border-t border-gold-600/20">
-                    <div className="flex items-center space-x-2">
-                      <p className="text-gray-400 text-sm">Account Type:</p>
-                      <span className="inline-flex items-center px-3 py-1 bg-gold-600/10 border border-gold-600/30 rounded-full">
-                        <span className="text-gold-500 text-sm font-medium capitalize">
-                          {user.role}
-                        </span>
-                      </span>
-                    </div>
-                    <p className="text-gray-400 text-xs mt-2">
-                      Member since {new Date(user.createdAt).toLocaleDateString()}
-                    </p>
-                  </div>
-                </div>
-              )}
+              </article>
             </div>
+          </section>
+        )}
+
+        <section className="products-promo">
+          <div className="products-promo__copy">
+            <strong>Need help with your account?</strong>
+            <span>
+              Contact our support team for assistance with profile updates, 
+              account security, or any other account-related questions.
+            </span>
           </div>
-        </div>
+
+          <div className="products-promo__actions">
+            <Link to="/contact" className="products-showcase__cta products-showcase__cta--primary">
+              <Mail size={16} strokeWidth={1.9} />
+              Contact Support
+            </Link>
+            <Link to="/orders" className="products-showcase__cta">
+              <Package size={16} strokeWidth={1.9} />
+              View Orders
+            </Link>
+          </div>
+        </section>
       </div>
     </div>
   );

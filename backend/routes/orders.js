@@ -695,6 +695,7 @@ router.post('/', auth, async (req, res) => {
 
 router.get('/my-orders', auth, async (req, res) => {
   try {
+    console.log('Fetching my-orders for user:', req.user?._id);
     const { page = 1, limit = 10, status } = req.query;
     const pageNum = Number.parseInt(page, 10) || 1;
     const limitNum = Number.parseInt(limit, 10) || 10;
@@ -749,6 +750,61 @@ router.get('/my-orders', auth, async (req, res) => {
   } catch (error) {
     console.error('Get user orders error:', error);
     return res.status(500).json({ message: 'Server error fetching orders' });
+  }
+});
+
+router.patch('/:id/status', auth, async (req, res) => {
+  try {
+    const { status } = req.body;
+    
+    if (!status) {
+      return res.status(400).json({ message: 'Status is required' });
+    }
+
+    const validStatuses = ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ message: 'Invalid status' });
+    }
+
+    if (!isDatabaseReady()) {
+      const order = getFallbackOrderById(req.params.id);
+
+      if (!order) {
+        return res.status(404).json({ message: 'Order not found' });
+      }
+
+      if (!canAccessFallbackOrder(order, req.user)) {
+        return res.status(403).json({ message: 'Access denied' });
+      }
+
+      // Update order status in fallback
+      order.status = status;
+      order.updatedAt = new Date().toISOString();
+
+      return res.json({
+        message: 'Order status updated successfully',
+        order: cloneFallbackValue(order),
+        source: 'fallback'
+      });
+    }
+
+    const order = await Order.findOne({ _id: req.params.id, userId: req.user._id });
+
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    order.status = status;
+    order.updatedAt = new Date();
+    await order.save();
+
+    return res.json({
+      message: 'Order status updated successfully',
+      order
+    });
+  } catch (error) {
+    console.error('Update order status error:', error);
+    return res.status(500).json({ message: 'Server error updating order status' });
   }
 });
 

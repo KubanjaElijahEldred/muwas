@@ -37,6 +37,20 @@ export const AuthProvider = ({ children }) => {
       baseURL: API_BASE_URL,
     });
 
+    // Add request interceptor to include auth token
+    instance.interceptors.request.use(
+      (config) => {
+        const token = localStorage.getItem('token');
+        if (token) {
+          config.headers.Authorization = `Bearer ${token}`;
+        }
+        return config;
+      },
+      (error) => {
+        return Promise.reject(error);
+      }
+    );
+
     instance.interceptors.response.use(
       (response) => response,
       async (error) => {
@@ -113,7 +127,16 @@ export const AuthProvider = ({ children }) => {
 
   const register = async (userData) => {
     try {
-      const response = await api.post('/auth/register', userData);
+      // If userData is FormData, let axios set the Content-Type automatically
+      const config = userData instanceof FormData 
+        ? { 
+            headers: {
+              'Content-Type': 'multipart/form-data',
+            },
+          }
+        : {};
+
+      const response = await api.post('/auth/register', userData, config);
       const { token: newToken, user: newUser } = response.data;
 
       setToken(newToken);

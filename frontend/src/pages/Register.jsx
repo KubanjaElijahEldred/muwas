@@ -1,7 +1,8 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   BadgeCheck,
+  Camera,
   Clock3,
   Eye,
   EyeOff,
@@ -11,7 +12,9 @@ import {
   MapPin,
   Phone,
   Truck,
+  Upload,
   User,
+  X,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { toAbsoluteApiUrl } from '../utils/api';
@@ -72,6 +75,9 @@ const Register = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [profileImage, setProfileImage] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
+  const fileInputRef = useRef(null);
   const googleAuthUrl = useMemo(() => {
     const authUrl = new URL(toAbsoluteApiUrl('/auth/google/start'));
 
@@ -89,6 +95,50 @@ const Register = () => {
     }));
   };
 
+  const handleImageUpload = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        setError('Please select an image file');
+        return;
+      }
+      
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        setError('Image size should be less than 5MB');
+        return;
+      }
+
+      setProfileImage(file);
+      
+      // Create preview
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setImagePreview(e.target.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleCameraCapture = () => {
+    // Create input for camera capture
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.capture = 'environment';
+    input.onchange = handleImageUpload;
+    input.click();
+  };
+
+  const removeProfileImage = () => {
+    setProfileImage(null);
+    setImagePreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
     setLoading(true);
@@ -100,24 +150,28 @@ const Register = () => {
       return;
     }
 
-    const registrationData = { ...formData };
-    const countryCode = registrationData.countryCode;
-    delete registrationData.confirmPassword;
-    delete registrationData.countryCode;
-
-    registrationData.phone = normalizePhoneNumber(countryCode, registrationData.phone);
-
-    if (registrationData.street || registrationData.city) {
-      registrationData.address = {
-        street: registrationData.street,
-        city: registrationData.city,
-        country: 'Uganda',
-      };
-      delete registrationData.street;
-      delete registrationData.city;
+    // Create FormData to handle file upload
+    const submitData = new FormData();
+    
+    // Add form fields
+    submitData.append('name', formData.name);
+    submitData.append('email', formData.email);
+    submitData.append('password', formData.password);
+    submitData.append('phone', normalizePhoneNumber(formData.countryCode, formData.phone));
+    submitData.append('role', formData.role);
+    
+    if (formData.street || formData.city) {
+      submitData.append('address[street]', formData.street);
+      submitData.append('address[city]', formData.city);
+      submitData.append('address[country]', 'Uganda');
+    }
+    
+    // Add profile image if selected
+    if (profileImage) {
+      submitData.append('profileImage', profileImage);
     }
 
-    const result = await register(registrationData);
+    const result = await register(submitData);
 
     if (result.success) {
       navigate('/');
@@ -170,6 +224,66 @@ const Register = () => {
 
           <form className="auth-form auth-form--grid" onSubmit={handleSubmit}>
             {error && <div className="auth-form__alert auth-form__alert--full">{error}</div>}
+
+            {/* Profile Picture Upload */}
+            <div className="auth-field auth-field--full">
+              <span>Profile picture (optional)</span>
+              <div className="auth-profile-upload">
+                <div className="auth-profile-upload__preview">
+                  {imagePreview ? (
+                    <img
+                      src={imagePreview}
+                      alt="Profile preview"
+                      className="auth-profile-upload__image"
+                    />
+                  ) : (
+                    <div className="auth-profile-upload__placeholder">
+                      <User size={48} strokeWidth={1.8} />
+                      <span>Add profile picture</span>
+                    </div>
+                  )}
+                </div>
+                
+                <div className="auth-profile-upload__controls">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    style={{ display: 'none' }}
+                  />
+                  
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="auth-profile-upload__btn"
+                  >
+                    <Upload size={16} strokeWidth={1.8} />
+                    Choose Photo
+                  </button>
+                  
+                  <button
+                    type="button"
+                    onClick={handleCameraCapture}
+                    className="auth-profile-upload__btn"
+                  >
+                    <Camera size={16} strokeWidth={1.8} />
+                    Take Photo
+                  </button>
+                  
+                  {imagePreview && (
+                    <button
+                      type="button"
+                      onClick={removeProfileImage}
+                      className="auth-profile-upload__btn auth-profile-upload__btn--remove"
+                    >
+                      <X size={16} strokeWidth={1.8} />
+                      Remove
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
 
             <label className="auth-field auth-field--full">
               <span>Full name</span>
