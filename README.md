@@ -231,8 +231,8 @@ The platform is ready for:
 ## 🌍 Deployment
 
 ### Frontend (Vercel/Netlify)
-1. Build the project: `npm run build`
-2. Deploy the `dist` folder
+1. Build the project from the repository root: `npm run build --prefix frontend`
+2. Deploy the `frontend/dist` folder
 3. Set environment variables in deployment platform
 
 ### Backend (Heroku/Railway)

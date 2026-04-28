@@ -95,7 +95,17 @@ const Header = ({ siteProducts = [], theme = 'dark', onToggleTheme }) => {
                   className="muwas-header__action"
                   onClick={() => setIsDropdownOpen((open) => !open)}
                 >
-                  <User size={17} strokeWidth={1.8} />
+                  <div className="muwas-account__avatar">
+                    {user?.profileImage ? (
+                      <img
+                        src={user.profileImage}
+                        alt="Profile"
+                        className="muwas-account__avatar-img"
+                      />
+                    ) : (
+                      <User size={17} strokeWidth={1.8} />
+                    )}
+                  </div>
                   <span>{user?.name || 'Account'}</span>
                   <ChevronDown size={15} strokeWidth={1.8} />
                 </button>

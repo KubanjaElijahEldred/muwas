@@ -73,15 +73,21 @@ const Profile = () => {
     }
   }, [user]);
 
+  // Auto-hide messages after 5 seconds
   useEffect(() => {
-    if (messageTimeoutRef.current) {
-      clearTimeout(messageTimeoutRef.current);
+    if (message) {
+      // Clear existing timeout
+      if (messageTimeoutRef.current) {
+        clearTimeout(messageTimeoutRef.current);
+      }
+      
+      // Set new timeout to hide message
+      messageTimeoutRef.current = setTimeout(() => {
+        setMessage('');
+      }, 5000);
     }
-
-    messageTimeoutRef.current = setTimeout(() => {
-      setMessage('');
-    }, 5000);
-
+    
+    // Cleanup timeout on unmount
     return () => {
       if (messageTimeoutRef.current) {
         clearTimeout(messageTimeoutRef.current);
@@ -89,48 +95,40 @@ const Profile = () => {
     };
   }, [message]);
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
-  const handleAddressChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      address: {
-        ...prev.address,
-        [name]: value
+  const handleImageUpload = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        setMessage('Please select an image file');
+        return;
       }
-    }));
+      
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        setMessage('Image size should be less than 5MB');
+        return;
+      }
+
+      setProfileImage(file);
+      
+      // Create preview
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setImagePreview(e.target.result);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    // Validate file type and size
-    if (!file.type.startsWith('image/')) {
-      setMessage('Please select an image file');
-      return;
-    }
-
-    if (file.size > 5 * 1024 * 1024) { // 5MB limit
-      setMessage('Image size should be less than 5MB');
-      return;
-    }
-
-    setProfileImage(file);
-    
-    // Create preview
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      setImagePreview(e.target.result);
-    };
-    reader.readAsDataURL(file);
+  const handleCameraCapture = () => {
+    // Create input for camera capture
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.capture = 'environment';
+    input.onchange = handleImageUpload;
+    input.click();
   };
 
   const removeProfileImage = () => {
@@ -138,6 +136,26 @@ const Profile = () => {
     setImagePreview(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
+    }
+  };
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    
+    if (name.includes('.')) {
+      const [parent, child] = name.split('.');
+      setFormData(prev => ({
+        ...prev,
+        [parent]: {
+          ...prev[parent],
+          [child]: value
+        }
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
     }
   };
 
@@ -151,7 +169,7 @@ const Profile = () => {
     submitData.append('name', formData.name);
     submitData.append('phone', formData.phone);
     
-    // Append address fields properly
+    // Add address as JSON string for proper parsing
     const addressData = {
       street: formData.address.street,
       city: formData.address.city,
@@ -221,8 +239,8 @@ const Profile = () => {
         <div className="products-page__inner">
           <div className="products-empty">
             <User size={42} strokeWidth={1.7} />
-            <h2>Profile not available</h2>
-            <p>Please log in to view your profile information</p>
+            <h3>Please log in to view your profile</h3>
+            <p>You need to be logged in to access your profile information.</p>
             <Link to="/login" className="products-showcase__cta products-showcase__cta--primary">
               Login to Your Account
             </Link>
@@ -671,6 +689,149 @@ const Profile = () => {
         accept="image/*"
         style={{ display: 'none' }}
       />
+    </div>
+  );
+                  </div>
+
+                  <div className="products-card__actions">
+                    <input
+                      ref={fileInputRef}
+                      <button
+                        type="button"
+                        className="profile-image-upload__btn"
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        <Upload size={16} strokeWidth={1.8} />
+                        Upload Photo
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="profile-form__actions">
+                <button
+                  type="button"
+                  className="profile-form__btn btn-secondary"
+                  onClick={handleCancel}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="profile-form__btn btn-primary"
+                  disabled={loading}
+                >
+                  {loading ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
+                      type="email"
+                      value={user.email}
+                      disabled
+                      className="form-input disabled"
+                    />
+                    <small>Email cannot be changed</small>
+                  </div>
+
+                  <div className="form-group">
+                    <label>Phone Number</label>
+                    <input
+                      type="tel"
+                      name="phone"
+                      value={formData.phone}
+                      onChange={handleChange}
+                      className="form-input"
+                      placeholder="+256 123 456 789"
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label>Street Address</label>
+                    <input
+                      type="text"
+                      name="address.street"
+                      value={formData.address.street}
+                      onChange={handleChange}
+                      className="form-input"
+                      placeholder="123 Main Street"
+                    />
+                  </div>
+
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>City</label>
+                      <input
+                        type="text"
+                        name="address.city"
+                        value={formData.address.city}
+                        onChange={handleChange}
+                        className="form-input"
+                        placeholder="Kampala"
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Postal Code</label>
+                      <input
+                        type="text"
+                        name="address.postalCode"
+                        value={formData.address.postalCode}
+                        onChange={handleChange}
+                        className="form-input"
+                        placeholder="256"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-actions">
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="products-showcase__cta products-showcase__cta--primary"
+                    >
+                      {loading ? (
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2"></div>
+                      ) : (
+                        <Save size={16} strokeWidth={1.9} className="mr-2" />
+                      )}
+                      Save Changes
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleCancel}
+                      className="products-showcase__cta"
+                    >
+                      <X size={16} strokeWidth={1.9} className="mr-2" />
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              </article>
+            </div>
+          </section>
+        )}
+
+        <section className="products-promo">
+          <div className="products-promo__copy">
+            <strong>Need help with your account?</strong>
+            <span>
+              Contact our support team for assistance with profile updates, 
+              account security, or any other account-related questions.
+            </span>
+          </div>
+
+          <div className="products-promo__actions">
+            <Link to="/contact" className="products-showcase__cta products-showcase__cta--primary">
+              <Mail size={16} strokeWidth={1.9} />
+              Contact Support
+            </Link>
+            <Link to="/orders" className="products-showcase__cta">
+              <Package size={16} strokeWidth={1.9} />
+              View Orders
+            </Link>
+          </div>
+        </section>
+      </div>
     </div>
   );
 };
