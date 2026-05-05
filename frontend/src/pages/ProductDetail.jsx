@@ -59,8 +59,12 @@ const ProductDetail = () => {
       }
 
       if (isMounted) {
-        setProduct(null);
-        setError('Product not found');
+        const fallbackProduct = fallbackProducts.find((item, index) => {
+          const normalizedFallback = normalizeProduct(item, index);
+          return item._id === id || normalizedFallback._id === id;
+        });
+
+        setProduct(fallbackProduct ? normalizeProduct(fallbackProduct) : null);
         setLoading(false);
       }
     };

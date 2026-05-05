@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Clock3, Mail, MapPin, Phone, Sparkles } from 'lucide-react';
+import brandLogo from '../assets/logo muwas.jpg';
 
 const quickLinks = [
   { to: '/', label: 'Home' },
@@ -31,7 +32,7 @@ const Footer = () => {
           <div className="muwas-footer__brand-panel">
             <Link to="/" className="muwas-footer__brand">
               <span className="muwas-footer__brand-mark" aria-hidden="true">
-                <img src="/images/image.png" alt="" className="muwas-footer__brand-image" />
+                <img src={brandLogo} alt="" className="muwas-footer__brand-image" />
               </span>
 
               <span className="muwas-footer__brand-copy">

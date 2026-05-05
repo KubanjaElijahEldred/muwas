@@ -5,6 +5,7 @@ import { CartProvider } from './contexts/CartContext';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import SiteAssistant from './components/SiteAssistant';
+import MobileTabBar from './components/MobileTabBar';
 import Landing from './pages/Landing';
 import Story from './pages/Story';
 import Products from './pages/Products';
@@ -45,16 +46,7 @@ function parseBooleanFlag(value, fallback = false) {
 }
 
 function getInitialTheme() {
-  if (typeof window === 'undefined') {
-    return 'dark';
-  }
-
-  const storedTheme = window.localStorage.getItem('muwas-theme');
-  if (storedTheme === 'light' || storedTheme === 'dark') {
-    return storedTheme;
-  }
-
-  return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+  return 'light';
 }
 
 function App() {
@@ -85,7 +77,7 @@ function App() {
         if (isMounted && Array.isArray(data.products) && data.products.length > 0) {
           setSiteProducts(data.products);
         }
-      } catch (error) {
+      } catch {
         // Keep UI running with empty assistant catalog when API is offline.
       }
     };
@@ -105,14 +97,14 @@ function App() {
   }, [theme]);
 
   const toggleTheme = () => {
-    setTheme((currentTheme) => (currentTheme === 'dark' ? 'light' : 'dark'));
+    setTheme('light');
   };
 
   return (
     <AuthProvider>
       <CartProvider>
         <Router>
-          <div className="min-h-screen flex flex-col bg-dark-900 text-white">
+          <div className="muwas-app-root min-h-screen flex flex-col">
             <Header siteProducts={siteProducts} theme={theme} onToggleTheme={toggleTheme} />
             <main>
               <Routes>
@@ -169,6 +161,7 @@ function App() {
             </main>
             <SiteAssistant siteProducts={siteProducts} />
             <Footer />
+            <MobileTabBar />
           </div>
         </Router>
       </CartProvider>

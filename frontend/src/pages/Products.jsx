@@ -1,67 +1,38 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   ArrowRight,
-  Filter,
   FlaskConical,
-  Leaf,
-  MapPin,
   Package,
   Search,
-  ShieldCheck,
   ShoppingCart,
   Sparkles,
-  Star,
-  Truck,
+  Store,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useCart } from '../contexts/CartContext';
-import {
-  formatLabel,
-  formatPrice,
-  normalizeProductCatalog,
-} from '../utils/productPresentation';
-import TypewriterText from '../components/TypewriterText';
-import { fetchWithApiFallback } from '../utils/api';
 import { fallbackProducts } from '../data/fallbackProducts';
-
-const featureTiles = [
-  {
-    icon: Truck,
-    title: 'Quick delivery',
-    copy: 'Fast Kampala and Masaka dispatch on in-stock bottles.',
-  },
-  {
-    icon: ShieldCheck,
-    title: 'Protected checkout',
-    copy: 'Mobile Money, card, and bank transfer supported.',
-  },
-  {
-    icon: Sparkles,
-    title: 'Farm-led craft',
-    copy: 'Every bottle is shaped by local botanicals, slower runs, and warmer finishes.',
-  },
-];
+import { fetchWithApiFallback } from '../utils/api';
+import { formatLabel, formatPrice, normalizeProductCatalog } from '../utils/productPresentation';
 
 const categoryIcons = {
   gin: FlaskConical,
   whiskey: Sparkles,
-  liqueur: Sparkles,
-  rum: ShieldCheck,
-  vodka: Truck,
-  reserve: Leaf,
+  liqueur: Store,
+  rum: Sparkles,
+  vodka: FlaskConical,
+  other: Package,
 };
 
 const Products = () => {
   const location = useLocation();
   const { user } = useAuth();
   const { addToCart } = useCart();
-  const [products, setProducts] = useState([]);
+  const [products, setProducts] = useState(() => normalizeProductCatalog(fallbackProducts));
   const [loading, setLoading] = useState(true);
-  const [catalogError, setCatalogError] = useState('');
+  const [catalogNote, setCatalogNote] = useState('Refreshing the live shelf...');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
-  const [activeShowcaseIndex, setActiveShowcaseIndex] = useState(0);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -73,7 +44,6 @@ const Products = () => {
 
     const fetchProducts = async () => {
       try {
-        setCatalogError('');
         const response = await fetchWithApiFallback('/products');
 
         if (!response.ok) {
@@ -81,23 +51,25 @@ const Products = () => {
         }
 
         const data = await response.json();
+        const liveProducts = Array.isArray(data.products) ? data.products : [];
 
         if (!isMounted) {
           return;
         }
 
-        if (Array.isArray(data.products) && data.products.length > 0) {
-          setProducts(normalizeProductCatalog(data.products));
+        if (liveProducts.length > 0) {
+          setProducts(normalizeProductCatalog(liveProducts));
+          setCatalogNote('Live catalog is ready.');
           return;
         }
 
-        setProducts([]);
-        setCatalogError('Live catalog is empty right now.');
+        setProducts(normalizeProductCatalog(fallbackProducts));
+        setCatalogNote('Showing the signature shelf while the live catalog is empty.');
       } catch (error) {
         console.error('Error fetching products:', error);
         if (isMounted) {
-          setProducts([]);
-          setCatalogError('Unable to load products. Please try again later.');
+          setProducts(normalizeProductCatalog(fallbackProducts));
+          setCatalogNote('Showing the signature shelf while the live catalog reconnects.');
         }
       } finally {
         if (isMounted) {
@@ -113,388 +85,117 @@ const Products = () => {
     };
   }, []);
 
-  const categories = Array.from(new Set(products.map((product) => product.category).filter(Boolean)));
-
-  const categoryOptions = [
-    {
-      key: '',
-      label: 'All Bottles',
-      description: `${products.length} curated pours`,
-      icon: Sparkles,
-    },
-    ...categories.map((category) => ({
-      key: category,
-      label: formatLabel(category),
-      description: `${products.filter((product) => product.category === category).length} bottles`,
-      icon: categoryIcons[category] || Package,
-    })),
-  ];
+  const categories = useMemo(
+    () => Array.from(new Set(products.map((product) => product.category).filter(Boolean))),
+    [products]
+  );
 
   const filteredProducts = products.filter((product) => {
     const haystack = [product.name, product.shortDescription, product.description, product.category]
       .filter(Boolean)
       .join(' ')
       .toLowerCase();
-
-    const matchesSearch = haystack.includes(searchTerm.toLowerCase());
+    const matchesSearch = haystack.includes(searchTerm.trim().toLowerCase());
     const matchesCategory = !selectedCategory || product.category === selectedCategory;
 
     return matchesSearch && matchesCategory;
   });
 
-  const activeProducts = filteredProducts.length > 0 ? filteredProducts : [];
-  const showcaseProducts = (activeProducts.length > 0 ? activeProducts : products).slice(0, 3);
-  const popularProducts = activeProducts.length > 0 ? activeProducts : products;
-  const hasResults = activeProducts.length > 0;
-  const catalogStatus = loading
-    ? 'Refreshing the live cellar list...'
-    : catalogError
-      ? 'Live catalog unavailable.'
-      : 'Ready to shop and compare.';
-  const inventoryCount = products.reduce((total, product) => total + Number(product.stock || 0), 0);
-  const featuredCount = products.filter((product) => product.offer && product.offer !== 'Featured').length;
-
-  useEffect(() => {
-    setActiveShowcaseIndex(0);
-  }, [showcaseProducts.length]);
-
-  useEffect(() => {
-    if (showcaseProducts.length <= 1) {
-      return undefined;
-    }
-
-    const slideTimer = window.setInterval(() => {
-      setActiveShowcaseIndex((currentIndex) => (currentIndex + 1) % showcaseProducts.length);
-    }, 4200);
-
-    return () => {
-      window.clearInterval(slideTimer);
-    };
-  }, [showcaseProducts.length]);
+  const featuredProducts = filteredProducts.slice(0, 3);
+  const displayProducts = filteredProducts.length > 0 ? filteredProducts : products;
 
   const handleAddToCart = (product) => {
     const result = addToCart(product);
 
     if (!result?.success) {
-      window.alert(result?.message || 'Unable to add this item right now.');
+      window.alert(result?.message || 'Unable to add this bottle right now.');
     }
   };
 
   return (
-    <div className="products-page">
+    <div className="products-page products-page--market">
       <div className="products-page__inner">
-        <section className="products-showcase">
-          <div className="products-showcase__hero">
-            <div className="products-showcase__copy">
-              <div className="products-showcase__eyebrow">
-                <span>Muwas Market Hall</span>
-                <span>{catalogStatus}</span>
-              </div>
-
-              <h1>
-                <TypewriterText 
-                  texts={[
-                    "Exceptional spirits crafted perfectly.",
-                    "Ugandan heritage distilled daily.", 
-                    "Premium quality guaranteed always."
-                  ]}
-                  speed={30}
-                  delay={500}
-                  deleteSpeed={20}
-                  pauseDuration={2000}
-                />
-              </h1>
-
-              <p>
-                Browse the current Muwas collection, compare tasting notes, and move from showcase
-                bottle to checkout without losing the farm-led amber identity of the brand.
-              </p>
-
-              <div className="products-showcase__actions">
-                <Link
-                  to="/contact"
-                  className="products-showcase__cta products-showcase__cta--primary"
-                >
-                  Book a tasting
-                  <ArrowRight size={17} strokeWidth={1.9} />
-                </Link>
-                <Link to="/story" className="products-showcase__cta">
-                  Read the Muwas story
-                </Link>
-              </div>
-
-              <div className="products-showcase__services">
-                {featureTiles.map(({ icon: Icon, title, copy }) => (
-                  <div key={title} className="products-showcase__service">
-                    <span className="products-showcase__service-icon">
-                      <Icon size={18} strokeWidth={1.8} />
-                    </span>
-                    <div>
-                      <strong>{title}</strong>
-                      <span>{copy}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="products-showcase__visual">
-              <div className="products-showcase__carousel">
-                <div
-                  className="products-showcase__track"
-                  style={{ transform: `translateX(-${activeShowcaseIndex * 100}%)` }}
-                >
-                  {showcaseProducts.map((product, index) => {
-                    const currentPrice =
-                      user?.role === 'wholesale' && product.wholesalePrice
-                        ? product.wholesalePrice
-                        : product.price;
-
-                    return (
-                      <div key={`${product._id}-showcase`} className="products-showcase__slide">
-                        <article
-                          className={`products-showcase__card products-showcase__card--${product.accent || 'default'} products-showcase__card--${
-                            index + 1
-                          }`}
-                        >
-                          <span className="products-showcase__card-badge">{product.offer}</span>
-
-                          <div className="products-showcase__card-copy">
-                            <strong>{product.name}</strong>
-                            <span>{product.badge}</span>
-                            <p className="products-showcase__card-note">{product.promo}</p>
-
-                            <div className="products-showcase__card-facts">
-                              <span>{formatPrice(currentPrice)}</span>
-                              <span>{product.abv}% ABV</span>
-                              <span>{product.volume}ml</span>
-                            </div>
-
-                            <div className="products-showcase__card-actions">
-                              <Link
-                                to={`/product/${product._id}`}
-                                className="products-showcase__card-link"
-                              >
-                                View bottle
-                              </Link>
-                              <button
-                                type="button"
-                                onClick={() => handleAddToCart(product)}
-                                disabled={product.isPreviewOnly}
-                                className="products-showcase__card-link products-showcase__card-link--primary"
-                              >
-                                <ShoppingCart size={16} strokeWidth={1.9} />
-                                {product.isPreviewOnly ? 'Live catalog unavailable' : 'Add to cart'}
-                              </button>
-                            </div>
-                          </div>
-
-                          <div className="products-showcase__card-media">
-                            <img
-                              src={product.images[0]?.url}
-                              alt={product.images[0]?.alt || product.name}
-                              className="products-showcase__card-image"
-                            />
-                          </div>
-                        </article>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div className="products-showcase__controls">
-                <p className="products-showcase__caption">Featured products on automatic slideshow</p>
-
-                <div className="products-showcase__pagination" aria-label="Featured product slides">
-                  {showcaseProducts.map((product, index) => (
-                    <button
-                      key={`${product._id}-dot`}
-                      type="button"
-                      className={`products-showcase__slide-button ${
-                        activeShowcaseIndex === index ? 'is-active' : ''
-                      }`}
-                      onClick={() => setActiveShowcaseIndex(index)}
-                      aria-label={`Show ${product.name}`}
-                      aria-pressed={activeShowcaseIndex === index}
-                    />
-                  ))}
-                </div>
-              </div>
-            </div>
+        <section className="products-market-hero">
+          <div className="products-market-hero__copy">
+            <p>Explore our bottles.</p>
+            <h1>Discover your flavor.</h1>
           </div>
-
-          <div className="products-toolbar">
-            <label className="products-toolbar__search">
-              <Search size={18} strokeWidth={1.9} />
-              <input
-                type="text"
-                placeholder="Search for gin, reserve bottles, citrus, coffee, and more..."
-                value={searchTerm}
-                onChange={(event) => setSearchTerm(event.target.value)}
-              />
-            </label>
-
-            <label className="products-toolbar__filter">
-              <Filter size={18} strokeWidth={1.9} />
-              <select
-                value={selectedCategory}
-                onChange={(event) => setSelectedCategory(event.target.value)}
-              >
-                <option value="">All categories</option>
-                {categories.map((category) => (
-                  <option key={category} value={category}>
-                    {formatLabel(category)}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <div className="products-toolbar__summary">
-              <strong>{hasResults ? activeProducts.length : 0}</strong>
-              <span>{hasResults ? 'matching bottles' : 'No matches yet'}</span>
-            </div>
-          </div>
-
-          <div className="products-categories" aria-label="Category shortcuts">
-            {categoryOptions.map(({ key, label, description, icon: Icon }) => (
-              <button
-                key={key || 'all'}
-                type="button"
-                className={`products-categories__item ${selectedCategory === key ? 'is-active' : ''}`}
-                onClick={() => setSelectedCategory(key)}
-              >
-                <span className="products-categories__icon">
-                  <Icon size={20} strokeWidth={1.8} />
-                </span>
-                <strong>{label}</strong>
-                <span>{description}</span>
-              </button>
-            ))}
-          </div>
-
-          <div className="products-market-strip" aria-label="Collection summary">
-            <div className="products-market-strip__card">
-              <strong>{products.length}</strong>
-              <span>Signature bottles in the current collection</span>
-            </div>
-            <div className="products-market-strip__card">
-              <strong>{inventoryCount}</strong>
-              <span>Units visible across retail-ready stock</span>
-            </div>
-            <div className="products-market-strip__card">
-              <strong>{featuredCount}</strong>
-              <span>Highlighted pours promoted for tours and gifting</span>
-            </div>
-          </div>
+          <div className="products-market-hero__shape" aria-hidden="true" />
         </section>
 
-        <section className="products-section">
-          <div className="products-section__heading">
-            <div>
-              <p className="products-section__eyebrow">Hot Deals</p>
-              <h2>Featured bottles from this week&apos;s shelf.</h2>
-            </div>
-
-            <Link to="/contact" className="products-section__link">
-              Need a stockist?
-              <ArrowRight size={16} strokeWidth={1.9} />
-            </Link>
-          </div>
-
-          <div className="products-deals">
-            {showcaseProducts.map((product, index) => (
-              <article
-                key={`${product._id}-deal`}
-                className={`products-deal-card products-deal-card--${product.accent || 'default'} products-deal-card--${
-                  index + 1
-                }`}
-              >
-                <div className="products-deal-card__copy">
-                  <span className="products-deal-card__offer">{product.offer}</span>
-                  <h3>{product.name}</h3>
-                  <p>{product.promo}</p>
-                  <div className="products-deal-card__meta">
-                    <span>
-                      {formatPrice(
-                        user?.role === 'wholesale' && product.wholesalePrice
-                          ? product.wholesalePrice
-                          : product.price
-                      )}
-                    </span>
-                    <span>{product.abv}% ABV</span>
-                  </div>
-                </div>
-
-                <img
-                  src={product.images[0]?.url}
-                  alt={product.images[0]?.alt || product.name}
-                  className="products-deal-card__image"
-                />
-              </article>
-            ))}
-          </div>
-        </section>
-
-        <section className="products-promo">
+        <section className="products-promo products-promo--market">
           <div className="products-promo__copy">
             <strong>Wholesale and tasting bookings are open now.</strong>
-            <span>
-              Sign in for wholesale pricing, or book a guided farm and distillery experience for
-              your team.
-            </span>
+            <span>{catalogNote}</span>
           </div>
 
           <div className="products-promo__actions">
-            <Link to="/login" className="products-showcase__cta products-showcase__cta--primary">
-              Wholesale login
+            <Link to="/login" className="products-market-button products-market-button--dark">
+              Wholesale
             </Link>
-            <Link to="/contact" className="products-showcase__cta">
-              Book a tour
+            <Link to="/contact" className="products-market-button">
+              Add booking
             </Link>
           </div>
         </section>
 
-        <section className="products-section">
-          <div className="products-section__heading">
-            <div>
-              <p className="products-section__eyebrow">Popular This Week</p>
-              <h2>Explore the current collection.</h2>
+        <section className="products-market-layout">
+          <div className="products-market-layout__main">
+            <div className="products-section__heading products-section__heading--market">
+              <div>
+                <p className="products-section__eyebrow">Featured shelf</p>
+                <h2>Featured bottles from this week&apos;s shelf.</h2>
+              </div>
+              <Link to="/contact" className="products-section__link">
+                Need a stockist?
+                <ArrowRight size={16} strokeWidth={2} />
+              </Link>
             </div>
 
-            <div className="products-section__note">
-              <MapPin size={16} strokeWidth={1.8} />
-              <span>Masaka roots. Ugandan botanicals. Bottled with character.</span>
+            <div className="products-deals products-deals--market">
+              {(featuredProducts.length > 0 ? featuredProducts : products.slice(0, 3)).map((product) => (
+                <article key={`${product._id}-featured`} className="products-deal-card">
+                  <img
+                    src={product.images[0]?.url}
+                    alt={product.images[0]?.alt || product.name}
+                    className="products-deal-card__image"
+                  />
+                  <div className="products-deal-card__copy">
+                    <span className="products-deal-card__offer">{product.offer}</span>
+                    <h3>{product.name}</h3>
+                    <p>{formatPrice(user?.role === 'wholesale' && product.wholesalePrice ? product.wholesalePrice : product.price)}</p>
+                  </div>
+                </article>
+              ))}
             </div>
-          </div>
 
-          {loading ? (
-            <div className="products-empty">
-              <Package size={42} strokeWidth={1.7} />
-              <h3>Loading live catalog...</h3>
-              <p>Fetching real products from the backend.</p>
+            <div className="products-section__heading products-section__heading--market">
+              <div>
+                <p className="products-section__eyebrow">Collection</p>
+                <h2>Explore the current collection.</h2>
+              </div>
+              <span className="products-section__count">
+                {loading ? 'Loading' : `${displayProducts.length} bottles`}
+              </span>
             </div>
-          ) : hasResults ? (
-            <div className="products-grid">
-              {popularProducts.map((product) => {
+
+            <div className="products-grid products-grid--market">
+              {displayProducts.map((product) => {
                 const currentPrice =
                   user?.role === 'wholesale' && product.wholesalePrice
                     ? product.wholesalePrice
                     : product.price;
 
                 return (
-                  <article
-                    key={product._id}
-                    className={`products-card products-card--${product.accent || 'default'}`}
-                  >
-                    <div className="products-card__media">
+                  <article key={product._id} className="products-card products-card--market">
+                    <Link to={`/product/${product._id}`} className="products-card__media">
                       <span className="products-card__badge">{product.badge}</span>
                       <img
                         src={product.images[0]?.url}
                         alt={product.images[0]?.alt || product.name}
                         className="products-card__image"
                       />
-                    </div>
+                    </Link>
 
                     <div className="products-card__body">
                       <div className="products-card__header">
@@ -507,57 +208,23 @@ const Products = () => {
                       <h3>{product.name}</h3>
                       <p>{product.shortDescription}</p>
 
-                      <div className="products-card__rating">
-                        <div className="products-card__stars" aria-hidden="true">
-                          {[...Array(5)].map((_, index) => (
-                            <Star
-                              key={`${product._id}-star-${index}`}
-                              className={index < 4 ? 'is-filled' : ''}
-                              size={15}
-                              strokeWidth={1.8}
-                            />
-                          ))}
-                        </div>
-                        <span>{product.rating.toFixed(1)} cellar score</span>
-                      </div>
-
-                      <div className="products-card__facts">
-                        <div>
-                          <span>ABV</span>
-                          <strong>{product.abv}%</strong>
-                        </div>
-                        <div>
-                          <span>Volume</span>
-                          <strong>{product.volume}ml</strong>
-                        </div>
-                        <div>
-                          <span>Profile</span>
-                          <strong>{product.offer}</strong>
-                        </div>
-                      </div>
-
                       <div className="products-card__footer">
                         <div className="products-card__price">
                           <strong>{formatPrice(currentPrice)}</strong>
-                          {user?.role === 'wholesale' && product.wholesalePrice ? (
-                            <span>Wholesale rate applied</span>
-                          ) : (
-                            <span>{product.badge}</span>
-                          )}
+                          <span>{product.abv}% ABV</span>
                         </div>
 
                         <div className="products-card__actions">
                           <Link to={`/product/${product._id}`} className="products-card__link">
-                            View Details
+                            Details
                           </Link>
                           <button
                             type="button"
                             onClick={() => handleAddToCart(product)}
-                            disabled={product.isPreviewOnly}
                             className="products-card__button"
                           >
-                            <ShoppingCart size={16} strokeWidth={1.9} />
-                            {product.isPreviewOnly ? 'Live catalog unavailable' : 'Add to cart'}
+                            <ShoppingCart size={16} strokeWidth={2} />
+                            Add to cart
                           </button>
                         </div>
                       </div>
@@ -566,31 +233,50 @@ const Products = () => {
                 );
               })}
             </div>
-          ) : (
-            <div className="products-empty">
-              <Package size={42} strokeWidth={1.7} />
-              <h3>{catalogError ? 'Live catalog unavailable.' : 'No bottles match that search yet.'}</h3>
-              <p>
-                {catalogError
-                  ? catalogError
-                  : 'Try a broader search term or switch back to all categories.'}
-              </p>
+          </div>
+
+          <aside className="products-market-layout__side">
+            <label className="products-toolbar__search products-toolbar__search--market">
+              <Search size={18} strokeWidth={2} />
+              <input
+                type="text"
+                placeholder="Search"
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+              />
+            </label>
+
+            <div className="products-categories products-categories--market" aria-label="Category shortcuts">
               <button
                 type="button"
-                onClick={() => {
-                  if (catalogError) {
-                    window.location.reload();
-                    return;
-                  }
-
-                  setSearchTerm('');
-                  setSelectedCategory('');
-                }}
+                className={`products-categories__item ${selectedCategory === '' ? 'is-active' : ''}`}
+                onClick={() => setSelectedCategory('')}
               >
-                {catalogError ? 'Retry loading live catalog' : 'Reset the catalog view'}
+                <Sparkles size={20} strokeWidth={2} />
+                <strong>All</strong>
+                <span>{products.length} bottles</span>
               </button>
+
+              {categories.map((category) => {
+                const Icon = categoryIcons[category] || Package;
+
+                return (
+                  <button
+                    key={category}
+                    type="button"
+                    className={`products-categories__item ${
+                      selectedCategory === category ? 'is-active' : ''
+                    }`}
+                    onClick={() => setSelectedCategory(category)}
+                  >
+                    <Icon size={20} strokeWidth={2} />
+                    <strong>{formatLabel(category)}</strong>
+                    <span>{products.filter((product) => product.category === category).length} bottles</span>
+                  </button>
+                );
+              })}
             </div>
-          )}
+          </aside>
         </section>
       </div>
     </div>

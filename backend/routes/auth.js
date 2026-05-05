@@ -1,6 +1,7 @@
 const express = require('express');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
+const mongoose = require('mongoose');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -9,6 +10,7 @@ const { auth } = require('../middleware/auth');
 
 const router = express.Router();
 const localhostOriginPattern = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i;
+const vercelOriginPattern = /^https:\/\/[\w-]+\.vercel\.app$/i;
 
 // Configure multer for profile image uploads
 const uploadsDir = path.join(__dirname, '../uploads/profiles');
@@ -23,7 +25,8 @@ const storage = multer.diskStorage({
   filename: (req, file, cb) => {
     // Generate unique filename
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, `profile-${req.user._id}-${uniqueSuffix}${path.extname(file.originalname)}`);
+    const ownerId = req.user?._id || 'new-user';
+    cb(null, `profile-${ownerId}-${uniqueSuffix}${path.extname(file.originalname)}`);
   }
 });
 
@@ -68,6 +71,10 @@ const isAllowedFrontendOrigin = (origin = '') => {
   }
 
   if (localhostOriginPattern.test(origin)) {
+    return true;
+  }
+
+  if (process.env.ALLOW_VERCEL_PREVIEW_ORIGINS !== 'false' && vercelOriginPattern.test(origin)) {
     return true;
   }
 
@@ -142,6 +149,7 @@ const getGoogleRedirectUri = (req) => {
 };
 
 const normalizeEmail = (value = '') => String(value || '').trim().toLowerCase();
+const isDatabaseReady = () => mongoose.connection.readyState === 1;
 const normalizeUsername = (value = '') =>
   String(value || '')
     .trim()
@@ -315,6 +323,12 @@ router.post('/login', async (req, res) => {
         message: 'Super admin login successful',
         token,
         user: superAdminUser,
+      });
+    }
+
+    if (!isDatabaseReady()) {
+      return res.status(503).json({
+        message: 'Service temporarily unavailable. Database connection is not ready.',
       });
     }
 

@@ -1,20 +1,18 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { ChevronDown, Menu, Moon, ShoppingCart, SunMedium, User, X } from 'lucide-react';
+import { Camera, ChevronDown, Menu, ShoppingCart, User, UserRound, X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useCart } from '../contexts/CartContext';
-import SiteSearch from './SiteSearch';
+import brandLogo from '../assets/logo muwas.jpg';
 
 const navLinks = [
-  { path: '/', label: 'Home' },
-  { path: '/story', label: 'Story' },
-  { path: '/products', label: 'Products' },
-  { path: '/contact', label: 'Contact Us' },
+  { path: '/', label: 'HOME' },
+  { path: '/products', label: 'PRODUCTS' },
+  { path: '/story', label: 'ABOUT' },
+  { path: '/contact', label: 'CONTACT' },
 ];
 
-const brandLogo = '/images/image.png';
-
-const Header = ({ siteProducts = [], theme = 'dark', onToggleTheme }) => {
+const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const { user, logout, isAuthenticated } = useAuth();
@@ -22,18 +20,12 @@ const Header = ({ siteProducts = [], theme = 'dark', onToggleTheme }) => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  useEffect(() => {
-    setIsMenuOpen(false);
-    setIsDropdownOpen(false);
-  }, [location.pathname]);
-
   const isActive = (path) => location.pathname === path;
   const cartCount = getCartCount();
   const wholesalePath =
     isAuthenticated && (user?.role === 'wholesale' || user?.role === 'admin')
       ? '/wholesale'
       : '/login';
-  const isLightTheme = theme === 'light';
 
   const handleLogout = () => {
     logout();
@@ -50,19 +42,16 @@ const Header = ({ siteProducts = [], theme = 'dark', onToggleTheme }) => {
             </span>
             <span className="muwas-brand__copy">
               <span className="muwas-brand__title">Muwas Distilling</span>
-              <span className="muwas-brand__subtitle">Single origin spirits, farm-grown botanicals</span>
+              <span className="muwas-brand__subtitle">Ugandan craft distilling</span>
             </span>
           </Link>
-
-          <div className="muwas-header__search">
-            <SiteSearch siteProducts={siteProducts} />
-          </div>
 
           <nav className="muwas-header__nav" aria-label="Primary">
             {navLinks.map((link) => (
               <Link
                 key={link.path}
                 to={link.path}
+                onClick={() => setIsDropdownOpen(false)}
                 className={`muwas-header__nav-link ${isActive(link.path) ? 'is-active' : ''}`}
               >
                 {link.label}
@@ -71,16 +60,13 @@ const Header = ({ siteProducts = [], theme = 'dark', onToggleTheme }) => {
           </nav>
 
           <div className="muwas-header__actions">
-            <button
-              type="button"
-              className="muwas-header__action muwas-header__theme-toggle"
-              onClick={onToggleTheme}
-              aria-label={`Switch to ${isLightTheme ? 'dark' : 'light'} mode`}
-              aria-pressed={isLightTheme}
+            <a
+              href="https://www.instagram.com/"
+              className="muwas-header__action muwas-header__action--icon"
+              aria-label="Muwas Distilling on Instagram"
             >
-              {isLightTheme ? <Moon size={17} strokeWidth={1.8} /> : <SunMedium size={17} strokeWidth={1.8} />}
-              <span>{isLightTheme ? 'Dark' : 'Light'}</span>
-            </button>
+              <Camera size={17} strokeWidth={1.9} />
+            </a>
 
             <Link to="/cart" className="muwas-header__action">
               <ShoppingCart size={17} strokeWidth={1.8} />
@@ -137,7 +123,8 @@ const Header = ({ siteProducts = [], theme = 'dark', onToggleTheme }) => {
             ) : (
               <div className="muwas-header__auth-links">
                 <Link to="/login" className="muwas-header__mini-link">
-                  Login
+                  <UserRound size={17} strokeWidth={1.8} />
+                  <span>Login</span>
                 </Link>
                 <Link to="/register" className="muwas-header__mini-link">
                   Register
@@ -158,9 +145,7 @@ const Header = ({ siteProducts = [], theme = 'dark', onToggleTheme }) => {
         </div>
 
         <div className="muwas-header__subbar">
-          <span className="muwas-header__subbar-note">
-            Search the catalog, story, tours, and shop support
-          </span>
+          <span className="muwas-header__subbar-note">Wholesale and tasting bookings are open now.</span>
           <Link to={wholesalePath} className="muwas-outline-button">
             Wholesale Login
           </Link>
@@ -168,34 +153,20 @@ const Header = ({ siteProducts = [], theme = 'dark', onToggleTheme }) => {
 
         {isMenuOpen && (
           <div className="muwas-mobile-menu">
-            <SiteSearch
-              siteProducts={siteProducts}
-              mobile
-              onNavigate={() => setIsMenuOpen(false)}
-            />
-
             <nav className="muwas-mobile-menu__links" aria-label="Mobile">
               {navLinks.map((link) => (
                 <Link
-                  key={link.path}
-                  to={link.path}
-                  className={`muwas-mobile-menu__link ${isActive(link.path) ? 'is-active' : ''}`}
-                >
+              key={link.path}
+              to={link.path}
+              onClick={() => setIsMenuOpen(false)}
+              className={`muwas-mobile-menu__link ${isActive(link.path) ? 'is-active' : ''}`}
+            >
                   {link.label}
                 </Link>
               ))}
             </nav>
 
             <div className="muwas-mobile-menu__actions">
-              <button
-                type="button"
-                className="muwas-mobile-menu__link muwas-mobile-menu__button"
-                onClick={onToggleTheme}
-                aria-pressed={isLightTheme}
-              >
-                {isLightTheme ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
-              </button>
-
               <Link to="/cart" className="muwas-mobile-menu__link">
                 Cart {cartCount > 0 ? `(${cartCount})` : ''}
               </Link>

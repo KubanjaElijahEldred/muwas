@@ -15,10 +15,27 @@ const { ensureDefaultAdmin } = require('./services/bootstrapAdmin');
 
 const app = express();
 const localhostOriginPattern = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
-const configuredOrigins = (process.env.FRONTEND_URL || 'http://localhost:5173,http://localhost:5174')
-  .split(',')
-  .map((origin) => origin.trim())
-  .filter(Boolean);
+const vercelOriginPattern = /^https:\/\/[\w-]+\.vercel\.app$/i;
+
+const getConfiguredOrigins = () => {
+  const origins = new Set(
+    (process.env.FRONTEND_URL || 'http://localhost:5173,http://localhost:5174')
+      .split(',')
+      .map((origin) => origin.trim())
+      .filter(Boolean)
+  );
+
+  [process.env.VERCEL_URL, process.env.VERCEL_BRANCH_URL]
+    .map((origin) => String(origin || '').trim())
+    .filter(Boolean)
+    .forEach((origin) => {
+      origins.add(origin.startsWith('http') ? origin : `https://${origin}`);
+    });
+
+  return Array.from(origins);
+};
+
+const configuredOrigins = getConfiguredOrigins();
 
 const isAllowedOrigin = (origin) => {
   if (!origin) {
@@ -30,6 +47,10 @@ const isAllowedOrigin = (origin) => {
   }
 
   if (process.env.NODE_ENV !== 'production' && localhostOriginPattern.test(origin)) {
+    return true;
+  }
+
+  if (process.env.ALLOW_VERCEL_PREVIEW_ORIGINS !== 'false' && vercelOriginPattern.test(origin)) {
     return true;
   }
 
@@ -60,6 +81,63 @@ app.use(express.urlencoded({ extended: true }));
 
 // Serve static files for uploads
 app.use('/uploads', express.static('uploads'));
+
+let databaseConnectionPromise = null;
+
+async function ensureDatabaseConnectionForRequest() {
+  if (mongoose.connection.readyState === 1) {
+    return;
+  }
+
+  if (!databaseConnectionPromise) {
+    databaseConnectionPromise = connectToDatabase({ maxRetries: 1 })
+      .then(() => runDatabaseBootstraps())
+      .finally(() => {
+        if (mongoose.connection.readyState !== 1) {
+          databaseConnectionPromise = null;
+        }
+      });
+  }
+
+  await databaseConnectionPromise;
+}
+
+const canServeWithoutDatabase = (req) => {
+  if (req.path === '/health') {
+    return true;
+  }
+
+  if (req.path === '/auth/login') {
+    return true;
+  }
+
+  if (req.method === 'GET' && req.path.startsWith('/products')) {
+    return true;
+  }
+
+  return false;
+};
+
+app.use('/api', async (req, res, next) => {
+  if (req.path === '/health') {
+    return next();
+  }
+
+  try {
+    await ensureDatabaseConnectionForRequest();
+    return next();
+  } catch (error) {
+    console.error('Database unavailable for API request:', error?.message || error);
+
+    if (canServeWithoutDatabase(req)) {
+      return next();
+    }
+
+    return res.status(503).json({
+      message: 'Service temporarily unavailable. Database connection is not ready.',
+    });
+  }
+});
 
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
@@ -239,4 +317,8 @@ async function startServer() {
   });
 }
 
-startServer();
+if (require.main === module) {
+  startServer();
+}
+
+module.exports = app;

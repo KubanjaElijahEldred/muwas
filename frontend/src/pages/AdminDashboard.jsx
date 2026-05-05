@@ -1,30 +1,49 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   AlertTriangle,
+  BarChart3,
+  Bell,
   Camera,
   CheckCircle2,
+  ChevronRight,
   Clock3,
+  Home,
   Image,
   Inbox,
+  LineChart,
   Loader2,
+  LogOut,
   Package,
   PhoneCall,
   Plus,
   RefreshCw,
+  Search,
   ShoppingCart,
+  Store,
   Trash2,
   Upload,
   UserRound,
+  Users,
   Wallet,
   X,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { formatLabel, formatPrice } from '../utils/productPresentation';
+import brandLogo from '../assets/logo muwas.jpg';
 
 const orderStatusOptions = ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'];
 const paymentStatusOptions = ['pending', 'paid', 'failed', 'refunded'];
 const productCategories = ['gin', 'vodka', 'rum', 'whiskey', 'liqueur', 'other'];
 const contactStatusOptions = ['new', 'in_progress', 'resolved'];
+
+const adminNavigationItems = [
+  { id: 'overview', label: 'Overview', hint: 'Global dashboard', icon: Home },
+  { id: 'orders', label: 'Order Management', hint: 'Customer orders', icon: ShoppingCart },
+  { id: 'products', label: 'Product Catalog', hint: 'Stock and pricing', icon: Store },
+  { id: 'contacts', label: 'Requests', hint: 'Messages and tours', icon: Bell },
+  { id: 'analytics', label: 'Reports & Analytics', hint: 'Business intelligence', icon: BarChart3 },
+];
 
 const createEmptyProductForm = () => ({
   name: '',
@@ -144,30 +163,20 @@ const buildProductPayload = (form = {}) => {
     payload.wholesalePrice = wholesalePrice;
   }
 
-  // Handle image based on upload method
-  if (imageUploadMethod === 'url' && imageUrl) {
+  const resolvedImageUrl =
+    imageUploadMethod === 'url'
+      ? imageUrl
+      : String(form.imagePreview || form.imageUrl || '').trim();
+
+  if (resolvedImageUrl) {
     payload.images = [
       {
-        url: imageUrl,
+        url: resolvedImageUrl,
         alt: imageAlt || `${name} bottle`,
       },
     ];
-  } else if (imageUploadMethod === 'upload' && uploadedImage) {
-    // For uploaded images, the backend will handle the file
-    payload.images = [
-      {
-        alt: imageAlt || `${name} bottle`,
-      },
-    ];
-    payload.uploadedImage = uploadedImage;
-  } else if (imageUploadMethod === 'camera' && uploadedImage) {
-    // For camera images, the backend will handle the file
-    payload.images = [
-      {
-        alt: imageAlt || `${name} bottle`,
-      },
-    ];
-    payload.uploadedImage = uploadedImage;
+  } else if (uploadedImage) {
+    throw new Error('Image is still processing. Please wait a moment and save again.');
   } else {
     payload.images = [];
   }
@@ -183,9 +192,19 @@ const getNoticeType = (type = 'info') => {
   return 'info';
 };
 
+const countByValue = (items = [], getValue) =>
+  items.reduce((counts, item) => {
+    const value = getValue(item) || 'unknown';
+    counts[value] = (counts[value] || 0) + 1;
+    return counts;
+  }, {});
+
 const AdminDashboard = () => {
-  const { api, user } = useAuth();
+  const { api, user, logout } = useAuth();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');
+  const [activeInsight, setActiveInsight] = useState('orders');
+  const [adminSearch, setAdminSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [orders, setOrders] = useState([]);
@@ -324,6 +343,165 @@ const AdminDashboard = () => {
     [contacts]
   );
 
+  const searchQuery = adminSearch.trim().toLowerCase();
+
+  const filteredOrders = useMemo(() => {
+    if (!searchQuery) {
+      return orders;
+    }
+
+    return orders.filter((order) => {
+      const searchable = [
+        order.orderNumber,
+        order.status,
+        order.paymentStatus,
+        order.trackingNumber,
+        order.userId?.name,
+        order.userId?.email,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+
+      return searchable.includes(searchQuery);
+    });
+  }, [orders, searchQuery]);
+
+  const filteredProducts = useMemo(() => {
+    if (!searchQuery) {
+      return products;
+    }
+
+    return products.filter((product) => {
+      const searchable = [
+        product.name,
+        product.category,
+        product.shortDescription,
+        product.description,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+
+      return searchable.includes(searchQuery);
+    });
+  }, [products, searchQuery]);
+
+  const filteredContacts = useMemo(() => {
+    if (!searchQuery) {
+      return contacts;
+    }
+
+    return contacts.filter((contact) => {
+      const searchable = [
+        contact.name,
+        contact.email,
+        contact.phone,
+        contact.subject,
+        contact.message,
+        contact.status,
+        contact.requestType,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+
+      return searchable.includes(searchQuery);
+    });
+  }, [contacts, searchQuery]);
+
+  const pendingRevenue = useMemo(
+    () =>
+      orders
+        .filter((order) => order.paymentStatus !== 'paid')
+        .reduce((sum, order) => sum + Number(order.totalAmount || 0), 0),
+    [orders]
+  );
+
+  const analyticsData = useMemo(() => {
+    const orderStatusCounts = countByValue(orders, (order) => order.status || 'pending');
+    const paymentStatusCounts = countByValue(orders, (order) => order.paymentStatus || 'pending');
+    const productCategoryCounts = countByValue(products, (product) => product.category || 'other');
+    const contactStatusCounts = countByValue(contacts, (contact) => contact.status || 'new');
+
+    const buildBars = (counts) =>
+      Object.entries(counts)
+        .sort(([, first], [, second]) => second - first)
+        .map(([label, value]) => ({ label: formatLabel(label), value }));
+
+    if (activeInsight === 'revenue') {
+      return {
+        title: 'Revenue Analytics',
+        icon: Wallet,
+        value: formatPrice(totalRevenue),
+        subtitle: `${formatPrice(pendingRevenue)} still awaiting payment`,
+        bars: buildBars(paymentStatusCounts),
+        actionLabel: 'Manage Orders',
+        actionTab: 'orders',
+      };
+    }
+
+    if (activeInsight === 'products') {
+      return {
+        title: 'Catalog Analytics',
+        icon: Package,
+        value: products.length.toLocaleString(),
+        subtitle: `${lowStockProductsCount} products need stock attention`,
+        bars: buildBars(productCategoryCounts),
+        actionLabel: 'Open Catalog',
+        actionTab: 'products',
+      };
+    }
+
+    if (activeInsight === 'contacts') {
+      return {
+        title: 'Request Analytics',
+        icon: Inbox,
+        value: contacts.length.toLocaleString(),
+        subtitle: `${unresolvedContactsCount} requests are unresolved`,
+        bars: buildBars(contactStatusCounts),
+        actionLabel: 'Review Requests',
+        actionTab: 'contacts',
+      };
+    }
+
+    return {
+      title: 'Order Analytics',
+      icon: ShoppingCart,
+      value: orders.length.toLocaleString(),
+      subtitle: `${pendingOrdersCount} orders are awaiting processing`,
+      bars: buildBars(orderStatusCounts),
+      actionLabel: 'Manage Orders',
+      actionTab: 'orders',
+    };
+  }, [
+    activeInsight,
+    contacts,
+    lowStockProductsCount,
+    orders,
+    pendingOrdersCount,
+    pendingRevenue,
+    products,
+    totalRevenue,
+    unresolvedContactsCount,
+  ]);
+
+  const analyticsMaxValue = Math.max(...analyticsData.bars.map((bar) => bar.value), 1);
+
+  const handleSectionChange = (sectionId) => {
+    setActiveTab(sectionId);
+  };
+
+  const handleMetricSelect = (insightId) => {
+    setActiveInsight(insightId);
+    setActiveTab('analytics');
+  };
+
+  const handleLogout = () => {
+    logout();
+    navigate('/');
+  };
+
   const handleProductFieldChange = (event) => {
     const { name, value, type, checked } = event.target;
 
@@ -366,9 +544,11 @@ const AdminDashboard = () => {
       // Create preview
       const reader = new FileReader();
       reader.onload = (e) => {
+        const dataUrl = e.target.result;
         setProductForm((current) => ({
           ...current,
-          imagePreview: e.target.result,
+          imageUrl: dataUrl,
+          imagePreview: dataUrl,
         }));
       };
       reader.readAsDataURL(file);
@@ -435,48 +615,12 @@ const AdminDashboard = () => {
 
     try {
       const payload = buildProductPayload(productForm);
-      
-      // Handle FormData for image uploads
-      let submitData;
-      let config = {};
-      
-      if (payload.uploadedImage) {
-        // Create FormData for file upload
-        submitData = new FormData();
-        
-        // Add all product fields except the image
-        Object.keys(payload).forEach(key => {
-          if (key !== 'uploadedImage' && key !== 'images') {
-            if (typeof payload[key] === 'object') {
-              submitData.append(key, JSON.stringify(payload[key]));
-            } else {
-              submitData.append(key, payload[key]);
-            }
-          }
-        });
-        
-        // Add images array
-        submitData.append('images', JSON.stringify(payload.images));
-        
-        // Add the image file
-        submitData.append('productImage', payload.uploadedImage);
-        
-        // Set proper headers for FormData
-        config = {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        };
-      } else {
-        // Regular JSON payload for URL images or no images
-        submitData = payload;
-      }
 
       if (editingProductId) {
-        await api.put(`/products/${editingProductId}`, submitData, config);
+        await api.put(`/products/${editingProductId}`, payload);
         pushNotice('Product updated successfully.', 'success');
       } else {
-        await api.post('/products', submitData, config);
+        await api.post('/products', payload);
         pushNotice('Product created successfully.', 'success');
       }
 
@@ -612,7 +756,61 @@ const AdminDashboard = () => {
 
   return (
     <div className="admin-hub">
-      <div className="admin-hub__inner">
+      <div className="admin-shell">
+        <aside className="admin-sidebar" aria-label="Admin dashboard navigation">
+          <div className="admin-sidebar__brand">
+            <div className="admin-sidebar__mark" aria-hidden="true">
+              <img src={brandLogo} alt="" />
+            </div>
+            <div>
+              <strong>MUWAS</strong>
+              <span>Admin Dashboard</span>
+            </div>
+          </div>
+
+          <nav className="admin-sidebar__nav">
+            {adminNavigationItems.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                className={activeTab === item.id ? 'is-active' : ''}
+                onClick={() => handleSectionChange(item.id)}
+              >
+                <span className="admin-sidebar__icon">
+                  {React.createElement(item.icon, { size: 17, strokeWidth: 1.8 })}
+                </span>
+                <span>
+                  <strong>{item.label}</strong>
+                  <small>{item.hint}</small>
+                </span>
+                <ChevronRight size={15} strokeWidth={1.8} />
+              </button>
+            ))}
+          </nav>
+
+          <div className="admin-sidebar__panel">
+            <p>Operations</p>
+            <strong>{orders.length + products.length + contacts.length}</strong>
+            <span>live records loaded</span>
+          </div>
+
+          <div className="admin-sidebar__actions">
+            <button
+              type="button"
+              onClick={() => fetchDashboardData({ silent: false })}
+              disabled={refreshing}
+            >
+              <RefreshCw size={16} className={refreshing ? 'is-spin' : ''} />
+              {refreshing ? 'Syncing' : 'Sync data'}
+            </button>
+            <button type="button" onClick={handleLogout}>
+              <LogOut size={16} />
+              Logout
+            </button>
+          </div>
+        </aside>
+
+        <div className="admin-hub__inner">
         <section className="admin-hub__hero">
           <div>
             <p className="admin-hub__eyebrow">Admin Control Center</p>
@@ -620,24 +818,36 @@ const AdminDashboard = () => {
             <span>Manage catalog, orders, and contact requests from one place.</span>
           </div>
 
-          <button
-            type="button"
-            onClick={() => fetchDashboardData({ silent: false })}
-            className="admin-hub__refresh"
-            disabled={refreshing}
-          >
-            {refreshing ? (
-              <>
-                <Loader2 size={16} className="is-spin" />
-                Syncing...
-              </>
-            ) : (
-              <>
-                <RefreshCw size={16} />
-                Refresh data
-              </>
-            )}
-          </button>
+          <div className="admin-hub__toolbar">
+            <label className="admin-hub__search">
+              <Search size={17} strokeWidth={1.8} />
+              <input
+                type="search"
+                value={adminSearch}
+                onChange={(event) => setAdminSearch(event.target.value)}
+                placeholder="Search dashboard..."
+              />
+            </label>
+
+            <button
+              type="button"
+              onClick={() => fetchDashboardData({ silent: false })}
+              className="admin-hub__refresh"
+              disabled={refreshing}
+            >
+              {refreshing ? (
+                <>
+                  <Loader2 size={16} className="is-spin" />
+                  Syncing...
+                </>
+              ) : (
+                <>
+                  <RefreshCw size={16} />
+                  Refresh data
+                </>
+              )}
+            </button>
+          </div>
         </section>
 
         {notice.text && (
@@ -651,54 +861,65 @@ const AdminDashboard = () => {
         )}
 
         <section className="admin-hub__metrics">
-          <article>
+          <button
+            type="button"
+            className={activeInsight === 'orders' ? 'is-active' : ''}
+            onClick={() => handleMetricSelect('orders')}
+          >
             <span>
               <ShoppingCart size={18} />
               Total orders
             </span>
             <strong>{orders.length}</strong>
             <small>{pendingOrdersCount} awaiting processing</small>
-          </article>
+          </button>
 
-          <article>
+          <button
+            type="button"
+            className={activeInsight === 'revenue' ? 'is-active' : ''}
+            onClick={() => handleMetricSelect('revenue')}
+          >
             <span>
               <Wallet size={18} />
               Revenue
             </span>
             <strong>{formatPrice(totalRevenue)}</strong>
             <small>Paid orders only</small>
-          </article>
+          </button>
 
-          <article>
+          <button
+            type="button"
+            className={activeInsight === 'products' ? 'is-active' : ''}
+            onClick={() => handleMetricSelect('products')}
+          >
             <span>
               <Package size={18} />
               Products
             </span>
             <strong>{products.length}</strong>
             <small>{lowStockProductsCount} low stock alerts</small>
-          </article>
+          </button>
 
-          <article>
+          <button
+            type="button"
+            className={activeInsight === 'contacts' ? 'is-active' : ''}
+            onClick={() => handleMetricSelect('contacts')}
+          >
             <span>
               <Inbox size={18} />
               Contact requests
             </span>
             <strong>{contacts.length}</strong>
             <small>{unresolvedContactsCount} unresolved</small>
-          </article>
+          </button>
         </section>
 
         <nav className="admin-hub__tabs" aria-label="Dashboard sections">
-          {[
-            { id: 'overview', label: 'Overview' },
-            { id: 'orders', label: 'Orders' },
-            { id: 'products', label: 'Products' },
-            { id: 'contacts', label: 'Contacts' },
-          ].map((tab) => (
+          {adminNavigationItems.map((tab) => (
             <button
               key={tab.id}
               type="button"
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => handleSectionChange(tab.id)}
               className={activeTab === tab.id ? 'is-active' : ''}
             >
               {tab.label}
@@ -711,14 +932,16 @@ const AdminDashboard = () => {
             <article className="admin-panel">
               <div className="admin-panel__heading">
                 <h2>Recent Orders</h2>
-                <span>Latest {Math.min(orders.length, 6)} records</span>
+                <button type="button" onClick={() => handleSectionChange('orders')}>
+                  View all
+                </button>
               </div>
 
-              {orders.length === 0 ? (
+              {filteredOrders.length === 0 ? (
                 <p className="admin-empty">No orders available yet.</p>
               ) : (
                 <div className="admin-list">
-                  {orders.slice(0, 6).map((order) => (
+                  {filteredOrders.slice(0, 6).map((order) => (
                     <div key={order._id} className="admin-list__row">
                       <div>
                         <strong>{order.orderNumber || 'Order'}</strong>
@@ -728,6 +951,9 @@ const AdminDashboard = () => {
                         <strong>{formatPrice(order.totalAmount || 0)}</strong>
                         <small>{order.status}</small>
                       </div>
+                      <button type="button" onClick={() => handleSectionChange('orders')}>
+                        Manage
+                      </button>
                     </div>
                   ))}
                 </div>
@@ -737,14 +963,16 @@ const AdminDashboard = () => {
             <article className="admin-panel">
               <div className="admin-panel__heading">
                 <h2>Low Stock</h2>
-                <span>Products at 10 or below</span>
+                <button type="button" onClick={() => handleMetricSelect('products')}>
+                  Analyze
+                </button>
               </div>
 
-              {products.filter((product) => Number(product.stock || 0) <= 10).length === 0 ? (
+              {filteredProducts.filter((product) => Number(product.stock || 0) <= 10).length === 0 ? (
                 <p className="admin-empty">No low-stock items right now.</p>
               ) : (
                 <div className="admin-list">
-                  {products
+                  {filteredProducts
                     .filter((product) => Number(product.stock || 0) <= 10)
                     .slice(0, 6)
                     .map((product) => (
@@ -757,8 +985,73 @@ const AdminDashboard = () => {
                           <strong>{Number(product.stock || 0)} in stock</strong>
                           <small>{formatPrice(product.price || 0)}</small>
                         </div>
+                        <button type="button" onClick={() => handleEditProduct(product)}>
+                          Edit
+                        </button>
                       </div>
                     ))}
+                </div>
+              )}
+            </article>
+
+            <article className="admin-panel admin-analytics-card">
+              <div className="admin-panel__heading">
+                <h2>Live Analytics</h2>
+                <button type="button" onClick={() => handleSectionChange('analytics')}>
+                  Open report
+                </button>
+              </div>
+
+              <div className="admin-analytics-card__summary">
+                <span>{React.createElement(analyticsData.icon, { size: 20 })}</span>
+                <div>
+                  <strong>{analyticsData.value}</strong>
+                  <small>{analyticsData.title}</small>
+                </div>
+              </div>
+
+              <div className="admin-analytics-bars">
+                {analyticsData.bars.slice(0, 5).map((bar) => (
+                  <button
+                    key={bar.label}
+                    type="button"
+                    onClick={() => handleSectionChange(analyticsData.actionTab)}
+                  >
+                    <span>{bar.label}</span>
+                    <strong>{bar.value}</strong>
+                    <em style={{ width: `${Math.max(8, (bar.value / analyticsMaxValue) * 100)}%` }} />
+                  </button>
+                ))}
+              </div>
+            </article>
+
+            <article className="admin-panel">
+              <div className="admin-panel__heading">
+                <h2>Requests</h2>
+                <button type="button" onClick={() => handleSectionChange('contacts')}>
+                  Review
+                </button>
+              </div>
+
+              {filteredContacts.length === 0 ? (
+                <p className="admin-empty">No contact requests yet.</p>
+              ) : (
+                <div className="admin-list">
+                  {filteredContacts.slice(0, 5).map((contact) => (
+                    <div key={contact._id} className="admin-list__row">
+                      <div>
+                        <strong>{contact.name}</strong>
+                        <small>{contact.email}</small>
+                      </div>
+                      <div>
+                        <strong>{formatLabel(contact.status || 'new')}</strong>
+                        <small>{formatLabel(contact.requestType || 'contact')}</small>
+                      </div>
+                      <button type="button" onClick={() => handleSectionChange('contacts')}>
+                        Open
+                      </button>
+                    </div>
+                  ))}
                 </div>
               )}
             </article>
@@ -772,7 +1065,7 @@ const AdminDashboard = () => {
               <span>Update status, payment state, and tracking number</span>
             </div>
 
-            {orders.length === 0 ? (
+            {filteredOrders.length === 0 ? (
               <p className="admin-empty">No orders found.</p>
             ) : (
               <div className="admin-table-wrap">
@@ -789,7 +1082,7 @@ const AdminDashboard = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {orders.map((order) => (
+                    {filteredOrders.map((order) => (
                       <tr key={order._id}>
                         <td>
                           <strong>{order.orderNumber || 'Order'}</strong>
@@ -1148,14 +1441,14 @@ const AdminDashboard = () => {
             <article className="admin-panel">
               <div className="admin-panel__heading">
                 <h2>Catalog</h2>
-                <span>{products.length} active products</span>
+                <span>{filteredProducts.length} active products</span>
               </div>
 
-              {products.length === 0 ? (
+              {filteredProducts.length === 0 ? (
                 <p className="admin-empty">No products found.</p>
               ) : (
                 <div className="admin-cards">
-                  {products.map((product) => (
+                  {filteredProducts.map((product) => (
                     <article key={product._id} className="admin-product-card">
                       <div className="admin-product-card__media">
                         {product.images?.[0]?.url ? (
@@ -1303,6 +1596,7 @@ const AdminDashboard = () => {
           <Plus size={16} />
           Add product
         </button>
+      </div>
       </div>
     </div>
   );
