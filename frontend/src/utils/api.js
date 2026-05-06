@@ -8,7 +8,27 @@ const normalizeOrigin = (value) =>
 
 const RETRYABLE_STATUS_CODES = new Set([502, 503, 504]);
 
-export const API_BASE_URL = normalizeBaseUrl(import.meta.env.VITE_API_URL);
+const isLocalHostname = (hostname = '') => /^(localhost|127\.0\.0\.1)$/i.test(hostname);
+
+const resolveApiBaseUrl = () => {
+  const configuredBaseUrl = normalizeBaseUrl(import.meta.env.VITE_API_URL);
+
+  if (typeof window === 'undefined') {
+    return configuredBaseUrl;
+  }
+
+  const isLocalApiUrl = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\/api/i.test(
+    configuredBaseUrl
+  );
+
+  if (isLocalApiUrl && !isLocalHostname(window.location.hostname)) {
+    return '/api';
+  }
+
+  return configuredBaseUrl;
+};
+
+export const API_BASE_URL = resolveApiBaseUrl();
 
 const resolveLocalFallbackBaseUrl = () => {
   if (typeof window === 'undefined') {
@@ -19,7 +39,7 @@ const resolveLocalFallbackBaseUrl = () => {
     return '';
   }
 
-  const isLocalHost = /^(localhost|127\.0\.0\.1)$/i.test(window.location.hostname);
+  const isLocalHost = isLocalHostname(window.location.hostname);
   if (!isLocalHost) {
     return '';
   }

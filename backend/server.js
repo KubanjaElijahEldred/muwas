@@ -14,6 +14,7 @@ const { ensureDefaultCatalog } = require('./services/bootstrapCatalog');
 const { ensureDefaultAdmin } = require('./services/bootstrapAdmin');
 
 const app = express();
+app.set('trust proxy', 1);
 const localhostOriginPattern = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
 const vercelOriginPattern = /^https:\/\/[\w-]+\.vercel\.app$/i;
 

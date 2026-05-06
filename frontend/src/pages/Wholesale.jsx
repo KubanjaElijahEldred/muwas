@@ -24,7 +24,6 @@ import {
   normalizeProductCatalog,
 } from '../utils/productPresentation';
 import TypewriterText from '../components/TypewriterText';
-import { fetchWithApiFallback } from '../utils/api';
 import { fallbackProducts } from '../data/fallbackProducts';
 
 const wholesaleFeatureTiles = [
@@ -80,24 +79,19 @@ const Wholesale = () => {
     try {
       setCatalogError('');
       const response = await api.get('/products');
-
-      if (!response.ok) {
-        throw new Error(`Catalog request failed with status ${response.status}`);
-      }
-
-      const data = await response.json();
+      const data = response.data || {};
 
       if (Array.isArray(data.products) && data.products.length > 0) {
         setProducts(normalizeProductCatalog(data.products));
         return;
       }
 
-      setProducts([]);
-      setCatalogError('Live catalog is empty right now.');
+      setProducts(normalizeProductCatalog(fallbackProducts));
+      setCatalogError('Showing signature wholesale bottles while the live catalog is empty.');
     } catch (error) {
       console.error('Error fetching products:', error);
-      setProducts([]);
-      setCatalogError('Unable to load products. Please try again later.');
+      setProducts(normalizeProductCatalog(fallbackProducts));
+      setCatalogError('Showing signature wholesale bottles while the live catalog reconnects.');
     } finally {
       setLoading(false);
     }

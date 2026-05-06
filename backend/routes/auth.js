@@ -3,32 +3,12 @@ const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
 const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
 const User = require('../models/User');
 const { auth } = require('../middleware/auth');
 
 const router = express.Router();
 const localhostOriginPattern = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i;
 const vercelOriginPattern = /^https:\/\/[\w-]+\.vercel\.app$/i;
-
-// Configure multer for profile image uploads
-const uploadsDir = path.join(__dirname, '../uploads/profiles');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-}
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadsDir);
-  },
-  filename: (req, file, cb) => {
-    // Generate unique filename
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    const ownerId = req.user?._id || 'new-user';
-    cb(null, `profile-${ownerId}-${uniqueSuffix}${path.extname(file.originalname)}`);
-  }
-});
 
 const fileFilter = (req, file, cb) => {
   // Accept only image files
@@ -40,20 +20,40 @@ const fileFilter = (req, file, cb) => {
 };
 
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   fileFilter,
   limits: {
     fileSize: 5 * 1024 * 1024, // 5MB limit
   }
 });
 
+const fileToDataUrl = (file) => {
+  if (!file?.buffer || !file?.mimetype) {
+    return undefined;
+  }
+
+  return `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
+};
+
 const getQueryValue = (value) => (Array.isArray(value) ? value[0] : value);
 
-const getConfiguredFrontendOrigins = () =>
-  (process.env.FRONTEND_URL || 'http://localhost:5173')
-    .split(',')
-    .map((origin) => origin.trim())
-    .filter(Boolean);
+const getConfiguredFrontendOrigins = () => {
+  const origins = new Set(
+    (process.env.FRONTEND_URL || 'http://localhost:5173')
+      .split(',')
+      .map((origin) => origin.trim())
+      .filter(Boolean)
+  );
+
+  [process.env.VERCEL_URL, process.env.VERCEL_BRANCH_URL]
+    .map((origin) => String(origin || '').trim())
+    .filter(Boolean)
+    .forEach((origin) => {
+      origins.add(origin.startsWith('http') ? origin : `https://${origin}`);
+    });
+
+  return Array.from(origins);
+};
 
 const getFrontendBaseUrl = () => {
   const configuredOrigins = getConfiguredFrontendOrigins();
@@ -277,7 +277,7 @@ router.post('/register', upload.single('profileImage'), async (req, res) => {
       isApproved,
       phone,
       address,
-      profileImage: req.file ? `/uploads/profiles/${req.file.filename}` : undefined
+      profileImage: fileToDataUrl(req.file)
     });
 
     await user.save();
@@ -572,18 +572,8 @@ router.put('/profile', auth, upload.single('profileImage'), async (req, res) => 
       }
     }
 
-    // Handle profile image upload
     if (req.file) {
-      // Delete old profile image if exists
-      if (req.user.profileImage) {
-        const oldImagePath = path.join(__dirname, '..', req.user.profileImage);
-        if (fs.existsSync(oldImagePath)) {
-          fs.unlinkSync(oldImagePath);
-        }
-      }
-      
-      // Store relative path to the image
-      updates.profileImage = `/uploads/profiles/${req.file.filename}`;
+      updates.profileImage = fileToDataUrl(req.file);
     }
 
     const user = await User.findByIdAndUpdate(

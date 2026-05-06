@@ -8740,3 +8740,174 @@ main {
   background: #f0142f !important;
   border-color: #f0142f !important;
 }
+
+/* Full-page fit and wholesale visibility hardening */
+.muwas-header__inner,
+.home-market,
+.products-page__inner,
+.cart-page__inner,
+.checkout-page__inner,
+.contact-page__inner,
+.product-detail-page__inner,
+.story-magazine__inner,
+.muwas-footer__inner,
+.admin-hub__inner {
+  width: 100% !important;
+  max-width: none !important;
+}
+
+.home-market,
+.products-page__inner,
+.cart-page__inner,
+.checkout-page__inner,
+.contact-page__inner,
+.product-detail-page__inner,
+.story-magazine__inner,
+.admin-hub__inner {
+  padding-left: clamp(0.7rem, 1.4vw, 1.2rem) !important;
+  padding-right: clamp(0.7rem, 1.4vw, 1.2rem) !important;
+}
+
+.muwas-footer__inner {
+  padding-left: clamp(0.7rem, 1.4vw, 1.2rem) !important;
+  padding-right: clamp(0.7rem, 1.4vw, 1.2rem) !important;
+}
+
+.products-page :is(
+  .products-showcase,
+  .products-showcase__hero,
+  .products-showcase__card,
+  .products-showcase__service,
+  .products-toolbar,
+  .products-toolbar__search,
+  .products-toolbar__filter,
+  .products-categories__item,
+  .products-market-strip__card,
+  .products-section,
+  .products-deal-card,
+  .products-card,
+  .products-card__media,
+  .products-card__facts,
+  .products-empty,
+  .wholesale-cart-summary,
+  .wholesale-cart-list,
+  .wholesale-cart-item,
+  .wholesale-cart-total
+) {
+  background: #ffffff !important;
+  border-color: rgba(0, 0, 0, 0.14) !important;
+  color: #000000 !important;
+}
+
+.products-page :is(
+  h1,
+  h2,
+  h3,
+  p,
+  label,
+  strong,
+  small,
+  .products-showcase__copy,
+  .products-showcase__copy p,
+  .products-showcase__eyebrow span,
+  .products-showcase__service strong,
+  .products-showcase__service span,
+  .products-showcase__card-copy strong,
+  .products-showcase__card-copy span,
+  .products-showcase__card-note,
+  .products-showcase__card-facts span,
+  .products-showcase__caption,
+  .products-toolbar__summary strong,
+  .products-toolbar__summary span,
+  .products-categories__item strong,
+  .products-categories__item span,
+  .products-market-strip__card strong,
+  .products-market-strip__card span,
+  .products-section__heading h2,
+  .products-section__note,
+  .products-section__note span,
+  .products-section__link,
+  .products-deal-card__copy h3,
+  .products-deal-card__copy p,
+  .products-deal-card__meta span,
+  .products-card__body h3,
+  .products-card__body p,
+  .products-card__category,
+  .products-card__stock,
+  .products-card__rating span,
+  .products-card__facts span,
+  .products-card__facts strong,
+  .products-card__price strong,
+  .products-card__price span,
+  .wholesale-cart-summary p,
+  .wholesale-cart-name,
+  .wholesale-cart-quantity,
+  .wholesale-cart-price,
+  .wholesale-cart-total strong
+) {
+  color: #000000 !important;
+  text-shadow: none !important;
+}
+
+.products-page :is(
+  .products-showcase__eyebrow,
+  .products-section__eyebrow,
+  .products-deal-card__offer,
+  .products-card__badge,
+  .products-showcase__card-badge
+) {
+  background: #000000 !important;
+  color: #ffffff !important;
+  border-color: #000000 !important;
+}
+
+.products-page :is(
+  .products-showcase__cta,
+  .products-showcase__card-link,
+  .products-card__button,
+  .products-empty button
+) {
+  background: #ff6b00 !important;
+  color: #ffffff !important;
+  border: 1px solid #ff6b00 !important;
+  border-radius: 6px !important;
+}
+
+.products-page :is(
+  .products-toolbar__search input,
+  .products-toolbar__filter select
+) {
+  color: #000000 !important;
+  background: #ffffff !important;
+}
+
+.products-page :is(
+  .products-toolbar__search input::placeholder
+) {
+  color: rgba(0, 0, 0, 0.55) !important;
+}
+
+.products-promo {
+  background: #ff6b00 !important;
+  border-color: #ff6b00 !important;
+}
+
+.products-promo :is(strong, span, p) {
+  color: #ffffff !important;
+}
+
+@media (max-width: 760px) {
+  .home-market,
+  .products-page__inner,
+  .cart-page__inner,
+  .checkout-page__inner,
+  .contact-page__inner,
+  .product-detail-page__inner,
+  .story-magazine__inner,
+  .admin-hub__inner,
+  .muwas-footer__inner {
+    width: 100% !important;
+    padding-left: 0.65rem !important;
+    padding-right: 0.65rem !important;
+  }
+}
