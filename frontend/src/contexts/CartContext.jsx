@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import { getProductImage, normalizeCartItem } from '../utils/productPresentation';
+import { showSuccessToast } from '../utils/toast';
 
 const CartContext = createContext();
 const normalizeMatchKey = (value = '') => String(value || '').trim().toLowerCase();
@@ -157,6 +158,8 @@ export const CartProvider = ({ children }) => {
         return [...prevItems, normalizedProduct];
       }
     });
+
+    showSuccessToast('Cart successfully updated');
 
     return { success: true };
   };

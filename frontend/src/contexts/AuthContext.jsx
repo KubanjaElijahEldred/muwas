@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import axios from 'axios';
 import { API_BASE_URL, API_FALLBACK_BASE_URL } from '../utils/api';
+import { showSuccessToast } from '../utils/toast';
 
 const AuthContext = createContext();
 const RETRYABLE_STATUS_CODES = new Set([502, 503, 504]);
@@ -143,6 +144,7 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('token', newToken);
       api.defaults.headers.common.Authorization = `Bearer ${newToken}`;
       setUser(newUser);
+      showSuccessToast('Account created successfully');
 
       return { success: true, user: newUser };
     } catch (error) {

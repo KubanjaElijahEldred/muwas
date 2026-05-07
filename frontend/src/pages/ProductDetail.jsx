@@ -1,24 +1,31 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import {
-  ArrowLeft,
-  MapPin,
+  Check,
+  Heart,
+  MessageCircle,
   Minus,
   Package,
   Plus,
+  RotateCcw,
   ShoppingCart,
-  Sparkles,
   Star,
+  Truck,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useCart } from '../contexts/CartContext';
-import {
-  formatLabel,
-  formatPrice,
-  normalizeProduct,
-} from '../utils/productPresentation';
+import { formatLabel, formatPrice, normalizeProduct } from '../utils/productPresentation';
 import { fetchWithApiFallback } from '../utils/api';
 import { fallbackProducts } from '../data/fallbackProducts';
+
+const colorOptions = [
+  { label: 'Black', value: '#061735' },
+  { label: 'Silver', value: '#aeb8c4' },
+  { label: 'Blue', value: '#1f3f8f' },
+  { label: 'Mist', value: '#d8e1ea' },
+];
+
+const sizeOptions = ['Small', 'Medium', 'Large'];
 
 const ProductDetail = () => {
   const { id } = useParams();
@@ -28,6 +35,8 @@ const ProductDetail = () => {
   const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
   const [selectedImage, setSelectedImage] = useState(0);
+  const [selectedColor, setSelectedColor] = useState(colorOptions[0]);
+  const [selectedSize, setSelectedSize] = useState(sizeOptions[0]);
 
   useEffect(() => {
     let isMounted = true;
@@ -115,31 +124,47 @@ const ProductDetail = () => {
     );
   }
 
+  const galleryImages = [
+    ...(product.images || []),
+    { url: '/images/home.png', alt: 'Muwas display' },
+    { url: '/images/story.png', alt: 'Muwas story display' },
+  ].slice(0, 4);
   const currentPrice =
     user?.role === 'wholesale' && product.wholesalePrice ? product.wholesalePrice : product.price;
+  const originalPrice = Math.round(Number(currentPrice || 0) * 1.12);
+  const relatedTags = [
+    product.name,
+    formatLabel(product.category),
+    'Muwas',
+    'Craft spirits',
+    'Wholesale',
+    'Best sellers',
+  ];
 
   return (
     <div className="product-detail-page">
       <div className="product-detail-page__inner">
-        <Link to="/products" className="product-detail-back-link">
-          <ArrowLeft size={16} strokeWidth={1.9} />
-          Back to Products
-        </Link>
+        <section className="product-detail-shell">
+          <div className="product-detail-topline">
+            <nav aria-label="Breadcrumb">
+              <Link to="/">Home</Link>
+              <span>/</span>
+              <Link to="/products">Products</Link>
+              <span>/</span>
+              <Link to={`/products?search=${product.category}`}>{formatLabel(product.category)}</Link>
+              <span>/</span>
+              <strong>{product.name}</strong>
+            </nav>
 
-        <section className="product-detail-hero">
-          <div className={`product-detail-gallery product-detail-gallery--${product.accent || 'default'}`}>
-            <div className="product-detail-gallery__main">
-              <span className="product-detail-gallery__badge">{formatLabel(product.category)}</span>
-              <img
-                src={product.images[selectedImage]?.url}
-                alt={product.images[selectedImage]?.alt || product.name}
-                className="product-detail-gallery__image"
-              />
-            </div>
+            <Link to="/products" className="product-detail-back-link">
+              Back to Products
+            </Link>
+          </div>
 
-            {product.images.length > 1 && (
+          <div className="product-detail-hero">
+            <div className="product-detail-gallery">
               <div className="product-detail-gallery__thumbs">
-                {product.images.map((image, index) => (
+                {galleryImages.map((image, index) => (
                   <button
                     key={`${product._id}-image-${index}`}
                     type="button"
@@ -153,158 +178,154 @@ const ProductDetail = () => {
                   </button>
                 ))}
               </div>
-            )}
-          </div>
 
-          <div className="product-detail-copy">
-            <div className="product-detail-copy__eyebrow">
-              <span>Muwas Distilling</span>
-              <span>{product.badge}</span>
-            </div>
-
-            <h1>{product.name}</h1>
-
-            <div className="product-detail-rating">
-              <div className="product-detail-rating__stars" aria-hidden="true">
-                {[...Array(5)].map((_, index) => (
-                  <Star
-                    key={`${product._id}-hero-star-${index}`}
-                    className={index < Math.round(product.rating) ? 'is-filled' : ''}
-                    size={16}
-                    strokeWidth={1.8}
-                  />
-                ))}
-              </div>
-              <span>{product.rating.toFixed(1)} cellar score</span>
-              <small>24 reviews</small>
-            </div>
-
-            <div className="product-detail-price">
-              <strong>{formatPrice(currentPrice)}</strong>
-              {user?.role === 'wholesale' && product.wholesalePrice ? (
-                <span>Wholesale price active. Retail price {formatPrice(product.price)}.</span>
-              ) : (
-                <span>{product.offer}</span>
-              )}
-            </div>
-
-            <p className="product-detail-description">{product.description}</p>
-
-            <div className="product-detail-specs">
-              <div>
-                <span>ABV</span>
-                <strong>{product.abv}%</strong>
-              </div>
-              <div>
-                <span>Volume</span>
-                <strong>{product.volume}ml</strong>
-              </div>
-              <div>
-                <span>Stock</span>
-                <strong>{product.stock} units</strong>
+              <div className="product-detail-gallery__main">
+                <img
+                  src={galleryImages[selectedImage]?.url}
+                  alt={galleryImages[selectedImage]?.alt || product.name}
+                  className="product-detail-gallery__image"
+                />
               </div>
             </div>
 
-            <div className="product-detail-purchase">
-              <div className="product-detail-quantity">
+            <aside className="product-detail-copy">
+              <span className="product-detail-stock">In Stock</span>
+              <h1>{product.name}</h1>
+
+              <div className="product-detail-rating">
+                <div className="product-detail-rating__stars" aria-hidden="true">
+                  {[...Array(5)].map((_, index) => (
+                    <Star
+                      key={`${product._id}-hero-star-${index}`}
+                      className={index < Math.round(product.rating) ? 'is-filled' : ''}
+                      size={16}
+                      strokeWidth={1.8}
+                    />
+                  ))}
+                </div>
+                <strong>{product.rating.toFixed(1)}</strong>
+                <span>({Math.max(0, Math.round(product.rating * 36))} reviews)</span>
+              </div>
+
+              <div className="product-detail-price">
+                <strong>{formatPrice(currentPrice)}</strong>
+                <span>{formatPrice(originalPrice)}</span>
+                <small>-10%</small>
+              </div>
+
+              <p className="product-detail-description">{product.shortDescription || product.description}</p>
+
+              <div className="product-detail-choice">
+                <strong>Color: {selectedColor.label}</strong>
+                <div className="product-detail-swatches">
+                  {colorOptions.map((color) => (
+                    <button
+                      key={color.label}
+                      type="button"
+                      className={selectedColor.label === color.label ? 'is-active' : ''}
+                      style={{ '--swatch-color': color.value }}
+                      onClick={() => setSelectedColor(color)}
+                      aria-label={`Choose ${color.label}`}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div className="product-detail-choice">
+                <strong>Size: {selectedSize}</strong>
+                <div className="product-detail-sizes">
+                  {sizeOptions.map((size) => (
+                    <button
+                      key={size}
+                      type="button"
+                      className={selectedSize === size ? 'is-active' : ''}
+                      onClick={() => setSelectedSize(size)}
+                    >
+                      {size}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="product-detail-purchase">
+                <strong>Quantity:</strong>
+                <div className="product-detail-quantity">
+                  <button
+                    type="button"
+                    onClick={() => setQuantity((current) => Math.max(1, current - 1))}
+                    aria-label="Decrease quantity"
+                  >
+                    <Minus size={16} strokeWidth={2} />
+                  </button>
+                  <span>{quantity}</span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setQuantity((current) => Math.min(Number(product.stock || 1), current + 1))
+                    }
+                    aria-label="Increase quantity"
+                  >
+                    <Plus size={16} strokeWidth={2} />
+                  </button>
+                </div>
+              </div>
+
+              <span className="product-detail-selected">
+                {selectedColor.label} / {selectedSize}
+              </span>
+
+              <div className="product-detail-actions">
                 <button
                   type="button"
-                  onClick={() => setQuantity((current) => Math.max(1, current - 1))}
-                  aria-label="Decrease quantity"
+                  onClick={handleAddToCart}
+                  disabled={product.stock === 0 || product.isPreviewOnly}
+                  className="product-detail-pill product-detail-pill--primary"
                 >
-                  <Minus size={16} strokeWidth={1.9} />
+                  <ShoppingCart size={18} strokeWidth={2} />
+                  {product.stock === 0
+                    ? 'Out of Stock'
+                    : product.isPreviewOnly
+                      ? 'Live catalog unavailable'
+                      : 'Add to Cart'}
                 </button>
-                <span>{quantity}</span>
-                <button
-                  type="button"
-                  onClick={() =>
-                    setQuantity((current) => Math.min(Number(product.stock || 1), current + 1))
-                  }
-                  aria-label="Increase quantity"
-                >
-                  <Plus size={16} strokeWidth={1.9} />
+                <Link to="/contact" className="product-detail-chat" aria-label="Chat about this product">
+                  <MessageCircle size={20} strokeWidth={2} />
+                </Link>
+                <button type="button" className="product-detail-heart" aria-label="Add to favorites">
+                  <Heart size={21} strokeWidth={1.9} />
                 </button>
               </div>
 
-              <button
-                type="button"
-                onClick={handleAddToCart}
-                disabled={product.stock === 0 || product.isPreviewOnly}
-                className="product-detail-pill product-detail-pill--primary"
-              >
-                <ShoppingCart size={16} strokeWidth={1.9} />
-                {product.stock === 0
-                  ? 'Out of Stock'
-                  : product.isPreviewOnly
-                    ? 'Live catalog unavailable'
-                    : 'Add to Cart'}
-              </button>
-            </div>
-
-            <div className="product-detail-origin">
-              <MapPin size={16} strokeWidth={1.8} />
-              <span>
-                Distilled at {product.origin?.distillery}, {product.origin?.location}
-              </span>
-            </div>
+              <div className="product-detail-benefits">
+                <div>
+                  <Check size={15} strokeWidth={2.2} />
+                  <strong>100% Original</strong>
+                  <span>Genuine products</span>
+                </div>
+                <div>
+                  <RotateCcw size={15} strokeWidth={2.1} />
+                  <strong>7-Day Returns</strong>
+                  <span>Easy returns</span>
+                </div>
+                <div>
+                  <Truck size={15} strokeWidth={2.1} />
+                  <strong>Free Delivery</strong>
+                  <span>On orders over UGX 100,000</span>
+                </div>
+              </div>
+            </aside>
           </div>
-        </section>
 
-        <section className="product-detail-grid">
-          <article className="product-detail-panel">
-            <div className="product-detail-panel__heading">
-              <p>Tasting Notes</p>
-              <h2>What you&apos;ll notice in the glass</h2>
-            </div>
-
-            <div className="product-detail-tags">
-              {(product.tastingNotes || []).map((note) => (
-                <span key={note}>{note}</span>
+          <section className="product-detail-related">
+            <h2>Related Searches</h2>
+            <div>
+              {relatedTags.map((tag) => (
+                <Link key={tag} to={`/products?search=${encodeURIComponent(tag)}`}>
+                  {tag}
+                </Link>
               ))}
             </div>
-          </article>
-
-          <article className="product-detail-panel">
-            <div className="product-detail-panel__heading">
-              <p>Key Ingredients</p>
-              <h2>Farm-led components</h2>
-            </div>
-
-            <div className="product-detail-tags product-detail-tags--warm">
-              {(product.ingredients || []).map((ingredient) => (
-                <span key={ingredient}>{ingredient}</span>
-              ))}
-            </div>
-          </article>
-
-          <article className="product-detail-story">
-            <div className="product-detail-story__copy">
-              <p>Origin</p>
-              <h2>Single origin spirits, farm-grown botanicals.</h2>
-              <span>
-                This bottle sits inside the Muwas collection as a retail-ready expression designed
-                for guided tastings, premium gifting, and hospitality shelves.
-              </span>
-            </div>
-
-            <div className="product-detail-story__meta">
-              <div>
-                <Sparkles size={17} strokeWidth={1.8} />
-                <strong>{product.badge}</strong>
-                <span>Current bottle note</span>
-              </div>
-              <div>
-                <Package size={17} strokeWidth={1.8} />
-                <strong>{product.stock} units</strong>
-                <span>Visible stock now</span>
-              </div>
-              <div>
-                <MapPin size={17} strokeWidth={1.8} />
-                <strong>{product.origin?.location}</strong>
-                <span>Distillery source</span>
-              </div>
-            </div>
-          </article>
+          </section>
         </section>
       </div>
     </div>

@@ -6,12 +6,14 @@ import Header from './components/Header';
 import Footer from './components/Footer';
 import SiteAssistant from './components/SiteAssistant';
 import MobileTabBar from './components/MobileTabBar';
+import ToastHost from './components/ToastHost';
 import Landing from './pages/Landing';
 import Story from './pages/Story';
 import Products from './pages/Products';
 import ProductDetail from './pages/ProductDetail';
 import Cart from './pages/Cart';
 import Checkout from './pages/Checkout';
+import OrderSuccess from './pages/OrderSuccess';
 import Contact from './pages/Contact';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -121,6 +123,14 @@ function App() {
                     </ProtectedRoute>
                   }
                 />
+                <Route
+                  path="/order-success"
+                  element={
+                    <ProtectedRoute>
+                      <OrderSuccess />
+                    </ProtectedRoute>
+                  }
+                />
                 <Route path="/contact" element={<Contact />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
@@ -162,6 +172,7 @@ function App() {
             <SiteAssistant siteProducts={siteProducts} />
             <Footer />
             <MobileTabBar />
+            <ToastHost />
           </div>
         </Router>
       </CartProvider>

@@ -25,6 +25,7 @@ import {
 } from '../utils/productPresentation';
 import TypewriterText from '../components/TypewriterText';
 import { fallbackProducts } from '../data/fallbackProducts';
+import { showSuccessToast } from '../utils/toast';
 
 const wholesaleFeatureTiles = [
   {
@@ -176,6 +177,7 @@ const Wholesale = () => {
         }];
       }
     });
+    showSuccessToast('Cart successfully updated');
   };
 
   const removeFromCart = (productId) => {
@@ -227,9 +229,10 @@ const Wholesale = () => {
         notes: 'Wholesale order'
       };
 
-      const response = await api.post('/orders', orderData);
+      await api.post('/orders', orderData);
       
       setMessage('Wholesale order placed successfully!');
+      showSuccessToast('Order placed successfully');
       setCartItems([]);
     } catch (error) {
       setMessage(error.response?.data?.message || 'Failed to place wholesale order');
@@ -285,7 +288,7 @@ const Wholesale = () => {
                 {wholesaleFeatureTiles.map(({ icon: Icon, title, copy }) => (
                   <div key={title} className="products-showcase__service">
                     <span className="products-showcase__service-icon">
-                      <Icon size={18} strokeWidth={1.8} />
+                      {React.createElement(Icon, { size: 18, strokeWidth: 1.8 })}
                     </span>
                     <div>
                       <strong>{title}</strong>
@@ -413,7 +416,7 @@ const Wholesale = () => {
                 onClick={() => setSelectedCategory(key)}
               >
                 <span className="products-categories__icon">
-                  <Icon size={20} strokeWidth={1.8} />
+                  {React.createElement(Icon, { size: 20, strokeWidth: 1.8 })}
                 </span>
                 <strong>{label}</strong>
                 <span>{description}</span>

@@ -1,18 +1,17 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  ArrowLeft,
+  Check,
   CreditCard,
-  Headset,
   MapPin,
-  ShieldCheck,
   Smartphone,
-  Timer,
   Truck,
+  WalletCards,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useCart } from '../contexts/CartContext';
 import { formatPrice } from '../utils/productPresentation';
+import { showSuccessToast } from '../utils/toast';
 
 const paymentProviderLabels = {
   mtn: 'MTN Mobile Money',
@@ -21,7 +20,7 @@ const paymentProviderLabels = {
 
 const paymentProviderBadgeText = {
   mtn: 'MTN',
-  airtel: 'Airtel',
+  airtel: 'airtel',
 };
 
 const Checkout = () => {
@@ -31,8 +30,10 @@ const Checkout = () => {
   const pollingLockRef = useRef(false);
   const [formData, setFormData] = useState({
     shippingAddress: {
+      fullName: user?.name || '',
       street: user?.address?.street || '',
       city: user?.address?.city || '',
+      district: '',
       country: 'Uganda',
       postalCode: '',
       phone: user?.phone || '',
@@ -64,13 +65,29 @@ const Checkout = () => {
     paymentProviderLabels[formData.mobileMoney.provider] || 'MTN Mobile Money';
 
   const finalizeOrder = (order, message) => {
-    clearCart();
-    navigate('/orders', {
-      state: {
-        message,
-        order,
+    const successState = {
+      message,
+      order,
+      summaryItems: cartItems.map((item) => ({ ...item })),
+      totals: {
+        subtotal,
+        deliveryFee,
+        total,
       },
-    });
+      shippingAddress: {
+        ...formData.shippingAddress,
+      },
+      paymentLabel:
+        formData.paymentMethod === 'mobile_money'
+          ? selectedMobileMoneyProvider
+          : formData.paymentMethod === 'credit_card'
+            ? 'Credit / Debit Card'
+            : 'Pay on Delivery',
+    };
+
+    showSuccessToast('Order placed successfully');
+    clearCart();
+    navigate('/order-success', { state: successState });
   };
 
   const updatePaymentSession = (order, payment) => {
@@ -78,9 +95,7 @@ const Checkout = () => {
       orderId: order._id,
       referenceId: payment?.referenceId || order.paymentReferenceId || '',
       phoneNumber:
-        payment?.phoneNumber ||
-        order.paymentPhoneNumber ||
-        formData.mobileMoney.phoneNumber,
+        payment?.phoneNumber || order.paymentPhoneNumber || formData.mobileMoney.phoneNumber,
       status: order.paymentStatus,
       providerStatus: payment?.providerStatus || order.paymentProviderStatus || '',
       provider: payment?.provider || formData.mobileMoney.provider,
@@ -175,7 +190,8 @@ const Checkout = () => {
 
         if (
           name === 'shippingAddress.phone' &&
-          (!current.mobileMoney.phoneNumber || current.mobileMoney.phoneNumber === current.shippingAddress.phone)
+          (!current.mobileMoney.phoneNumber ||
+            current.mobileMoney.phoneNumber === current.shippingAddress.phone)
         ) {
           nextValue.mobileMoney = {
             ...current.mobileMoney,
@@ -219,7 +235,10 @@ const Checkout = () => {
     );
 
     if (result.order.paymentStatus === 'paid') {
-      finalizeOrder(result.order, result.message || 'Payment confirmed and order placed successfully!');
+      finalizeOrder(
+        result.order,
+        result.message || 'Payment confirmed and order placed successfully!'
+      );
       return;
     }
 
@@ -239,305 +258,255 @@ const Checkout = () => {
   return (
     <div className="checkout-page">
       <div className="checkout-page__inner">
-        <button type="button" onClick={() => navigate('/cart')} className="checkout-back-link">
-          <ArrowLeft size={16} strokeWidth={1.9} />
-          Back to Cart
-        </button>
-
-        <section className="checkout-hero">
-          <div>
-            <p className="checkout-hero__eyebrow">Checkout</p>
-            <h1>Secure your Muwas order with delivery and payment details in one place.</h1>
-            <span>
-              Enter the mobile money number, then approve the payment prompt on the customer phone
-              and enter the PIN there.
-            </span>
-          </div>
-
-          <div className="checkout-hero__stats">
-            <div>
-              <strong>{cartItems.length}</strong>
-              <span>line items</span>
+        <div className="checkout-stepper" aria-label="Checkout steps">
+          {[
+            ['1', 'Delivery', 'Enter delivery details'],
+            ['2', 'Payment', 'Choose payment method'],
+            ['3', 'Review', 'Confirm your order'],
+          ].map(([number, title, copy], index) => (
+            <div key={title} className={index === 0 ? 'is-active' : ''}>
+              <span>{number}</span>
+              <strong>{title}</strong>
+              <small>{copy}</small>
             </div>
-            <div>
-              <strong>{formatPrice(subtotal)}</strong>
-              <span>subtotal</span>
-            </div>
-            <div>
-              <strong>{formatPrice(total)}</strong>
-              <span>estimated total</span>
-            </div>
-          </div>
-        </section>
+          ))}
+        </div>
 
-        <section className="checkout-trust-grid" aria-label="Checkout reassurance cards">
-          <article className="checkout-trust-card">
-            <span>
-              <ShieldCheck size={17} strokeWidth={1.8} />
-            </span>
-            <strong>Secure payment flow</strong>
-            <p>MTN and Airtel requests are sent directly to the customer handset for PIN entry.</p>
-          </article>
-
-          <article className="checkout-trust-card">
-            <span>
-              <Timer size={17} strokeWidth={1.8} />
-            </span>
-            <strong>Fast fulfillment</strong>
-            <p>Confirmed orders are prepared quickly with pickup and boda delivery options.</p>
-          </article>
-
-          <article className="checkout-trust-card">
-            <span>
-              <Headset size={17} strokeWidth={1.8} />
-            </span>
-            <strong>Support on standby</strong>
-            <p>Need help at checkout? The team can assist with payment and delivery guidance.</p>
-          </article>
-        </section>
-
-        {submitError && (
-          <div className="checkout-feedback checkout-feedback--error">{submitError}</div>
-        )}
+        {submitError && <div className="checkout-feedback checkout-feedback--error">{submitError}</div>}
 
         {paymentStatusMessage && !submitError && (
           <div className="checkout-feedback checkout-feedback--info">{paymentStatusMessage}</div>
         )}
 
-        <div className="checkout-layout">
-          <form id="checkout-form" onSubmit={handleSubmit} className="checkout-form">
-            <section className="checkout-panel">
-              <div className="checkout-panel__heading">
-                <p>Shipping information</p>
-                <h2>Where should we deliver?</h2>
+        <form id="checkout-form" onSubmit={handleSubmit} className="checkout-layout checkout-layout--shop">
+          <section className="checkout-panel checkout-panel--delivery">
+            <div className="checkout-panel__heading">
+              <span>
+                <MapPin size={17} strokeWidth={2} />
+              </span>
+              <div>
+                <h2>Delivery Address</h2>
+                <p>Where should we bring your order?</p>
               </div>
+              <button type="button">Edit</button>
+            </div>
 
-              <div className="checkout-fields">
-                <label className="checkout-field checkout-field--full">
-                  <span>Street address</span>
-                  <input
-                    type="text"
-                    name="shippingAddress.street"
-                    value={formData.shippingAddress.street}
-                    onChange={handleChange}
-                    required
-                    placeholder="123 Main Street"
-                  />
-                </label>
+            <div className="checkout-fields">
+              <label className="checkout-field">
+                <span>Full Name</span>
+                <input
+                  type="text"
+                  name="shippingAddress.fullName"
+                  value={formData.shippingAddress.fullName}
+                  onChange={handleChange}
+                  placeholder="Full name"
+                />
+              </label>
 
-                <label className="checkout-field">
-                  <span>City</span>
-                  <input
-                    type="text"
-                    name="shippingAddress.city"
-                    value={formData.shippingAddress.city}
-                    onChange={handleChange}
-                    required
-                    placeholder="Kampala"
-                  />
-                </label>
+              <label className="checkout-field">
+                <span>Phone Number</span>
+                <input
+                  type="tel"
+                  name="shippingAddress.phone"
+                  value={formData.shippingAddress.phone}
+                  onChange={handleChange}
+                  required
+                  placeholder="07XXXXXXXX"
+                />
+              </label>
 
-                <label className="checkout-field">
-                  <span>Postal code</span>
-                  <input
-                    type="text"
-                    name="shippingAddress.postalCode"
-                    value={formData.shippingAddress.postalCode}
-                    onChange={handleChange}
-                    placeholder="256"
-                  />
-                </label>
+              <label className="checkout-field checkout-field--full">
+                <span>Street Address</span>
+                <input
+                  type="text"
+                  name="shippingAddress.street"
+                  value={formData.shippingAddress.street}
+                  onChange={handleChange}
+                  required
+                  placeholder="Street address"
+                />
+              </label>
 
-                <label className="checkout-field checkout-field--full">
-                  <span>Phone number</span>
-                  <input
-                    type="tel"
-                    name="shippingAddress.phone"
-                    value={formData.shippingAddress.phone}
-                    onChange={handleChange}
-                    required
-                    placeholder="+256 123 456 789"
-                  />
-                </label>
+              <label className="checkout-field">
+                <span>City</span>
+                <input
+                  type="text"
+                  name="shippingAddress.city"
+                  value={formData.shippingAddress.city}
+                  onChange={handleChange}
+                  required
+                  placeholder="Kampala"
+                />
+              </label>
+
+              <label className="checkout-field">
+                <span>District</span>
+                <input
+                  type="text"
+                  name="shippingAddress.district"
+                  value={formData.shippingAddress.district}
+                  onChange={handleChange}
+                  placeholder="District"
+                />
+              </label>
+            </div>
+
+            <label className="checkout-save-address">
+              <input type="checkbox" defaultChecked />
+              <span>Save this address for faster checkout</span>
+            </label>
+
+            <h3>Delivery Options</h3>
+            <div className="checkout-options">
+              <label
+                className={`checkout-option ${
+                  formData.deliveryMethod === 'boda_delivery' ? 'is-active' : ''
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="deliveryMethod"
+                  value="boda_delivery"
+                  checked={formData.deliveryMethod === 'boda_delivery'}
+                  onChange={handleChange}
+                />
+                <div>
+                  <strong>Standard Delivery</strong>
+                  <span>2 - 5 business days</span>
+                </div>
+                <small>{formatPrice(5000)}</small>
+              </label>
+
+              <label
+                className={`checkout-option ${
+                  formData.deliveryMethod === 'pickup' ? 'is-active' : ''
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="deliveryMethod"
+                  value="pickup"
+                  checked={formData.deliveryMethod === 'pickup'}
+                  onChange={handleChange}
+                />
+                <div>
+                  <strong>Pickup Point</strong>
+                  <span>Pick up from a nearby location</span>
+                </div>
+                <small>UGX 0</small>
+              </label>
+            </div>
+          </section>
+
+          <section className="checkout-panel checkout-panel--payment">
+            <div className="checkout-panel__heading">
+              <span>
+                <WalletCards size={17} strokeWidth={2} />
+              </span>
+              <div>
+                <h2>Payment Method</h2>
+                <p>Choose how you want to pay</p>
               </div>
-            </section>
+            </div>
 
-            <section className="checkout-panel">
-              <div className="checkout-panel__heading">
-                <p>Delivery method</p>
-                <h2>Choose how you receive your order</h2>
-              </div>
+            <div className="checkout-options">
+              <label
+                className={`checkout-option ${
+                  formData.paymentMethod === 'mobile_money' ? 'is-active' : ''
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="paymentMethod"
+                  value="mobile_money"
+                  checked={formData.paymentMethod === 'mobile_money'}
+                  onChange={handleChange}
+                />
+                <Smartphone size={19} strokeWidth={2} />
+                <div>
+                  <strong>Mobile Money</strong>
+                  <span>MTN, Airtel, etc.</span>
+                </div>
+                <span className="checkout-option__badges">
+                  <b>MTN</b>
+                  <b>airtel</b>
+                </span>
+              </label>
 
-              <div className="checkout-options">
-                <label
-                  className={`checkout-option ${
-                    formData.deliveryMethod === 'pickup' ? 'is-active' : ''
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="deliveryMethod"
-                    value="pickup"
-                    checked={formData.deliveryMethod === 'pickup'}
-                    onChange={handleChange}
-                  />
-                  <MapPin size={18} strokeWidth={1.8} />
-                  <div>
-                    <strong>Store Pickup</strong>
-                    <span>Pick up from Muwas Farm</span>
-                  </div>
-                  <small>Free</small>
-                </label>
+              <label
+                className={`checkout-option ${
+                  formData.paymentMethod === 'credit_card' ? 'is-active' : ''
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="paymentMethod"
+                  value="credit_card"
+                  checked={formData.paymentMethod === 'credit_card'}
+                  onChange={handleChange}
+                />
+                <CreditCard size={19} strokeWidth={2} />
+                <div>
+                  <strong>Credit / Debit Card</strong>
+                  <span>Visa, Mastercard</span>
+                </div>
+                <span className="checkout-option__badges">
+                  <b>VISA</b>
+                  <b>MC</b>
+                </span>
+              </label>
 
-                <label
-                  className={`checkout-option ${
-                    formData.deliveryMethod === 'boda_delivery' ? 'is-active' : ''
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="deliveryMethod"
-                    value="boda_delivery"
-                    checked={formData.deliveryMethod === 'boda_delivery'}
-                    onChange={handleChange}
-                  />
-                  <Truck size={18} strokeWidth={1.8} />
-                  <div>
-                    <strong>Boda Delivery</strong>
-                    <span>Delivered to your location</span>
-                  </div>
-                  <small>{formatPrice(5000)}</small>
-                </label>
-              </div>
-            </section>
-
-            <section className="checkout-panel">
-              <div className="checkout-panel__heading">
-                <p>Payment method</p>
-                <h2>Settle your order</h2>
-              </div>
-
-              <div className="checkout-options">
-                <label
-                  className={`checkout-option ${
-                    formData.paymentMethod === 'mobile_money' ? 'is-active' : ''
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="paymentMethod"
-                    value="mobile_money"
-                    checked={formData.paymentMethod === 'mobile_money'}
-                    onChange={handleChange}
-                  />
-                  <Smartphone size={18} strokeWidth={1.8} />
-                  <div>
-                    <div className="checkout-option__title-row">
-                      <strong>Mobile Money</strong>
-                      <span className="checkout-option__badges" aria-label="Supported networks">
-                        <span className="checkout-network-badge checkout-network-badge--mtn">
-                          MTN
-                        </span>
-                        <span className="checkout-network-badge checkout-network-badge--airtel">
-                          Airtel
-                        </span>
-                      </span>
-                    </div>
-                    <span>Choose MTN or Airtel, then confirm on the phone</span>
-                  </div>
-                </label>
-
-                <label
-                  className={`checkout-option ${
-                    formData.paymentMethod === 'cash_on_delivery' ? 'is-active' : ''
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="paymentMethod"
-                    value="cash_on_delivery"
-                    checked={formData.paymentMethod === 'cash_on_delivery'}
-                    onChange={handleChange}
-                  />
-                  <CreditCard size={18} strokeWidth={1.8} />
-                  <div>
-                    <strong>Cash on Delivery</strong>
-                    <span>Pay when you receive your order</span>
-                  </div>
-                </label>
-              </div>
-            </section>
+              <label
+                className={`checkout-option ${
+                  formData.paymentMethod === 'cash_on_delivery' ? 'is-active' : ''
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="paymentMethod"
+                  value="cash_on_delivery"
+                  checked={formData.paymentMethod === 'cash_on_delivery'}
+                  onChange={handleChange}
+                />
+                <Truck size={19} strokeWidth={2} />
+                <div>
+                  <strong>Pay on Delivery</strong>
+                  <span>Pay when you receive your order</span>
+                </div>
+              </label>
+            </div>
 
             {formData.paymentMethod === 'mobile_money' && (
-              <section className="checkout-panel">
-                <div className="checkout-panel__heading">
-                  <p>Mobile money prompt</p>
-                  <h2>Choose the network and number that should receive the prompt</h2>
+              <div className="checkout-mobile-money">
+                <div className="checkout-provider-tabs">
+                  {Object.entries(paymentProviderLabels).map(([provider, label]) => (
+                    <label
+                      key={provider}
+                      className={formData.mobileMoney.provider === provider ? 'is-active' : ''}
+                    >
+                      <input
+                        type="radio"
+                        name="mobileMoney.provider"
+                        value={provider}
+                        checked={formData.mobileMoney.provider === provider}
+                        onChange={handleChange}
+                      />
+                      {label}
+                    </label>
+                  ))}
                 </div>
 
-                <div className="checkout-options">
-                  <label
-                    className={`checkout-option ${
-                      formData.mobileMoney.provider === 'mtn' ? 'is-active' : ''
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="mobileMoney.provider"
-                      value="mtn"
-                      checked={formData.mobileMoney.provider === 'mtn'}
-                      onChange={handleChange}
-                    />
-                    <Smartphone size={18} strokeWidth={1.8} />
-                    <div>
-                      <div className="checkout-option__title-row">
-                        <strong>MTN Mobile Money</strong>
-                        <span className="checkout-network-badge checkout-network-badge--mtn">
-                          MTN
-                        </span>
-                      </div>
-                      <span>Best for MTN wallet numbers</span>
-                    </div>
-                  </label>
-
-                  <label
-                    className={`checkout-option ${
-                      formData.mobileMoney.provider === 'airtel' ? 'is-active' : ''
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="mobileMoney.provider"
-                      value="airtel"
-                      checked={formData.mobileMoney.provider === 'airtel'}
-                      onChange={handleChange}
-                    />
-                    <Smartphone size={18} strokeWidth={1.8} />
-                    <div>
-                      <div className="checkout-option__title-row">
-                        <strong>Airtel Money</strong>
-                        <span className="checkout-network-badge checkout-network-badge--airtel">
-                          Airtel
-                        </span>
-                      </div>
-                      <span>Best for Airtel wallet numbers</span>
-                    </div>
-                  </label>
-                </div>
-
-                <div className="checkout-fields">
-                  <label className="checkout-field checkout-field--full">
-                    <span>{selectedMobileMoneyProvider} number</span>
-                    <input
-                      type="tel"
-                      name="mobileMoney.phoneNumber"
-                      value={formData.mobileMoney.phoneNumber}
-                      onChange={handleChange}
-                      required={formData.paymentMethod === 'mobile_money'}
-                      placeholder="07XXXXXXXX or 2567XXXXXXXX"
-                    />
-                  </label>
-                </div>
+                <label className="checkout-field checkout-field--full">
+                  <span>{selectedMobileMoneyProvider} number</span>
+                  <input
+                    type="tel"
+                    name="mobileMoney.phoneNumber"
+                    value={formData.mobileMoney.phoneNumber}
+                    onChange={handleChange}
+                    required={formData.paymentMethod === 'mobile_money'}
+                    placeholder="07XXXXXXXX or 2567XXXXXXXX"
+                  />
+                </label>
 
                 <div
                   className={`checkout-payment-state ${
@@ -550,24 +519,23 @@ const Checkout = () => {
                       : paymentSession?.status === 'failed'
                         ? `${paymentSession?.providerLabel || selectedMobileMoneyProvider} was not completed`
                         : paymentSession?.status === 'pending'
-                          ? `${paymentSession?.providerLabel || selectedMobileMoneyProvider} prompt sent to the phone`
+                          ? `${paymentSession?.providerLabel || selectedMobileMoneyProvider} prompt sent`
                           : 'Phone confirmation step'}
                   </strong>
                   <p>
-                    After you submit, {paymentSession?.providerLabel || selectedMobileMoneyProvider}
-                    {' '}sends a confirmation request to this number. The customer should approve it
-                    and enter the mobile money PIN on the phone, not on this website.
+                    Submit your order, approve the prompt on the customer phone, then check the
+                    payment status here.
                   </p>
                   {(paymentSession?.provider || formData.mobileMoney.provider) && (
-                    <div className="checkout-payment-state__badge-row">
-                      <span
-                        className={`checkout-network-badge checkout-network-badge--${
-                          paymentSession?.provider || formData.mobileMoney.provider
-                        }`}
-                      >
-                        {paymentProviderBadgeText[paymentSession?.provider || formData.mobileMoney.provider] || 'Mobile Money'}
-                      </span>
-                    </div>
+                    <span
+                      className={`checkout-network-badge checkout-network-badge--${
+                        paymentSession?.provider || formData.mobileMoney.provider
+                      }`}
+                    >
+                      {paymentProviderBadgeText[
+                        paymentSession?.provider || formData.mobileMoney.provider
+                      ] || 'Mobile Money'}
+                    </span>
                   )}
                   {paymentSession?.referenceId && (
                     <small>Reference: {paymentSession.referenceId}</small>
@@ -583,39 +551,35 @@ const Checkout = () => {
                     </button>
                   )}
                 </div>
-              </section>
+              </div>
             )}
 
-            <section className="checkout-panel">
-              <div className="checkout-panel__heading">
-                <p>Order notes</p>
-                <h2>Anything we should know?</h2>
-              </div>
-
-              <label className="checkout-field checkout-field--full">
-                <span>Special instructions</span>
-                <textarea
-                  name="notes"
-                  value={formData.notes}
-                  onChange={handleChange}
-                  rows={4}
-                  placeholder="Special instructions for your order..."
-                />
-              </label>
-            </section>
-          </form>
+            <button
+              type="submit"
+              disabled={loading || isAwaitingPayment}
+              className="checkout-submit"
+            >
+              {loading
+                ? 'Sending payment request...'
+                : isAwaitingPayment
+                  ? `Waiting for ${paymentSession?.providerLabel || selectedMobileMoneyProvider} confirmation...`
+                  : formData.paymentMethod === 'mobile_money'
+                    ? `Request ${selectedMobileMoneyProvider} Payment`
+                    : 'Place Order'}
+            </button>
+          </section>
 
           <aside className="checkout-summary">
             <div className="checkout-summary__panel">
-              <p>Order summary</p>
-              <h2>Your basket</h2>
+              <h2>Order Summary</h2>
 
               <div className="checkout-summary__items">
                 {cartItems.map((item) => (
                   <div key={item.productId} className="checkout-summary__item">
+                    <img src={item.image} alt={item.name} />
                     <div className="checkout-summary__item-copy">
                       <strong>{item.name}</strong>
-                      <span>Qty {item.quantity}</span>
+                      <span>Black / White, Qty: {item.quantity}</span>
                     </div>
                     <small>{formatPrice(item.price * item.quantity)}</small>
                   </div>
@@ -628,8 +592,10 @@ const Checkout = () => {
                   <strong>{formatPrice(subtotal)}</strong>
                 </div>
                 <div>
-                  <span>Delivery Fee</span>
-                  <strong>{formatPrice(deliveryFee)}</strong>
+                  <span>Shipping</span>
+                  <strong className={deliveryFee === 0 ? 'is-free' : ''}>
+                    {formatPrice(deliveryFee)}
+                  </strong>
                 </div>
                 <div className="checkout-summary__grand-total">
                   <span>Total</span>
@@ -637,29 +603,22 @@ const Checkout = () => {
                 </div>
               </div>
 
-              <button
-                type="submit"
-                form="checkout-form"
-                disabled={loading || isAwaitingPayment}
-                className="checkout-submit"
-              >
-                {loading
-                  ? 'Sending payment request...'
-                  : isAwaitingPayment
-                    ? `Waiting for ${paymentSession?.providerLabel || selectedMobileMoneyProvider} confirmation...`
-                    : formData.paymentMethod === 'mobile_money'
-                      ? `Request ${selectedMobileMoneyProvider} Payment`
-                      : 'Place Order'}
-              </button>
+              <div className="checkout-summary__notice">
+                <Check size={19} strokeWidth={2.4} />
+                <div>
+                  <strong>You saved on shipping!</strong>
+                  <span>Nice choice.</span>
+                </div>
+              </div>
 
               {user?.role === 'wholesale' && (
-                <div className="checkout-summary__notice">
+                <div className="checkout-summary__notice checkout-summary__notice--red">
                   Wholesale pricing is active for this order.
                 </div>
               )}
             </div>
           </aside>
-        </div>
+        </form>
       </div>
     </div>
   );
