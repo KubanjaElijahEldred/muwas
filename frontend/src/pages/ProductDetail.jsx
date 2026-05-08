@@ -51,6 +51,17 @@ const ProductDetail = () => {
         return;
       }
 
+      const fallbackProduct = fallbackProducts.find((item, index) => {
+        const normalizedFallback = normalizeProduct(item, index);
+        return item._id === id || normalizedFallback._id === id;
+      });
+
+      if (fallbackProduct) {
+        setProduct(normalizeProduct(fallbackProduct));
+        setLoading(false);
+        return;
+      }
+
       try {
         const response = await fetchWithApiFallback(`/products/${id}`);
 
@@ -68,12 +79,7 @@ const ProductDetail = () => {
       }
 
       if (isMounted) {
-        const fallbackProduct = fallbackProducts.find((item, index) => {
-          const normalizedFallback = normalizeProduct(item, index);
-          return item._id === id || normalizedFallback._id === id;
-        });
-
-        setProduct(fallbackProduct ? normalizeProduct(fallbackProduct) : null);
+        setProduct(null);
         setLoading(false);
       }
     };

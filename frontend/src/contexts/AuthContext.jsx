@@ -128,16 +128,7 @@ export const AuthProvider = ({ children }) => {
 
   const register = async (userData) => {
     try {
-      // If userData is FormData, let axios set the Content-Type automatically
-      const config = userData instanceof FormData 
-        ? { 
-            headers: {
-              'Content-Type': 'multipart/form-data',
-            },
-          }
-        : {};
-
-      const response = await api.post('/auth/register', userData, config);
+      const response = await api.post('/auth/register', userData);
       const { token: newToken, user: newUser } = response.data;
 
       setToken(newToken);
@@ -148,7 +139,7 @@ export const AuthProvider = ({ children }) => {
 
       return { success: true, user: newUser };
     } catch (error) {
-      const message = error.response?.data?.message || 'Registration failed';
+      const message = error.response?.data?.message || error.message || 'Registration failed';
       return { success: false, message };
     }
   };

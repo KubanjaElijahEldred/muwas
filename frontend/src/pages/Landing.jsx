@@ -1,15 +1,19 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   ArrowRight,
-  BadgePercent,
+  Award,
+  BottleWine,
+  CalendarDays,
+  ChevronRight,
   FlaskConical,
-  Package,
+  Leaf,
+  MapPin,
+  Martini,
   Search,
   ShoppingCart,
   Sparkles,
-  Store,
-  Truck,
+  Warehouse,
   Wine,
 } from 'lucide-react';
 import { useCart } from '../contexts/CartContext';
@@ -21,21 +25,33 @@ const homeProducts = normalizeProductCatalog(fallbackProducts);
 const categoryTiles = [
   { label: 'Gin', query: 'gin', icon: FlaskConical },
   { label: 'Whiskey', query: 'whiskey', icon: Wine },
-  { label: 'Liqueurs', query: 'liqueur', icon: Sparkles },
-  { label: 'Wholesale', query: 'wholesale', icon: Store },
+  { label: 'Liqueurs', query: 'liqueur', icon: Martini },
+  { label: 'Wholesale', query: 'wholesale', icon: Warehouse },
+  { label: 'Bottles', query: 'bottle', icon: BottleWine },
 ];
 
-const storyStrip = [
-  '/images/home.png',
-  '/images/farm.png',
-  '/images/rovart.png',
-  '/images/orange.png',
-  '/images/story.png',
-  '/images/final2.jpg',
+const proofPoints = [
+  {
+    label: 'Wholesale & tasting',
+    text: 'Bookings are open now.',
+    icon: CalendarDays,
+  },
+  {
+    label: 'Premium quality',
+    text: 'Crafted with passion.',
+    icon: Award,
+  },
+  {
+    label: 'Ugandan heritage',
+    text: 'Proudly local. Globally inspired.',
+    icon: Leaf,
+  },
 ];
 
 const Landing = () => {
+  const [collectionQuery, setCollectionQuery] = useState('');
   const { addToCart } = useCart();
+  const navigate = useNavigate();
 
   const handleAddToCart = (product) => {
     const result = addToCart(product);
@@ -45,81 +61,60 @@ const Landing = () => {
     }
   };
 
+  const handleCollectionSearch = (event) => {
+    event.preventDefault();
+    const query = collectionQuery.trim();
+    navigate(query ? `/products?search=${encodeURIComponent(query)}` : '/products');
+  };
+
   return (
     <div className="home-market">
       <section className="home-market__hero home-market__hero--image">
         <div className="home-market__hero-copy">
-          <p>Craft spirits</p>
-          <h1>Muwas sellers</h1>
-          <span>Small-batch gin, whiskey, rum, and liqueurs delivered across Uganda.</span>
+          <p>Crafted in Uganda.</p>
+          <h1>
+            <span>Excellence</span>
+            in every drop.
+          </h1>
+          <span>Premium spirits made from the finest local ingredients. Bold taste, true heritage.</span>
           <div className="home-market__hero-actions">
-            <Link to="/products">Shop now</Link>
-            <Link to="/register">Create account</Link>
+            <Link to="/products">
+              Explore our bottles
+              <ArrowRight size={18} strokeWidth={2.2} />
+            </Link>
+            <Link to="/products">View collection</Link>
           </div>
         </div>
-
-        <div className="home-market__hero-frame">
-          <img src="/images/home.png" alt="Muwas bottles with botanicals and farm landscape" />
-        </div>
       </section>
 
-      <section className="home-category-grid" aria-label="Shop categories">
-        {categoryTiles.map(({ label, query, icon: Icon }) => (
-          <Link key={label} to={`/products?search=${query}`} className="home-category-card">
-            <span>
-              {React.createElement(Icon, { size: 26, strokeWidth: 1.9 })}
-            </span>
-            <strong>{label}</strong>
-          </Link>
-        ))}
-      </section>
+      <section className="home-market__proof-strip" aria-label="Muwas service highlights">
+        {proofPoints.map((point) => {
+          const Icon = point.icon;
 
-      <section className="home-market__section">
-        <div className="home-market__section-heading">
-          <h2>Hot Deals</h2>
-          <Link to="/products">
-            See all
-            <ArrowRight size={15} strokeWidth={2} />
-          </Link>
-        </div>
-
-        <div className="home-market__product-grid">
-          {homeProducts.map((product) => (
-            <article key={product._id} className="home-product-card">
-              <Link to={`/product/${product._id}`} className="home-product-card__media">
-                <span className="home-product-card__deal">
-                  <BadgePercent size={14} strokeWidth={2} />
-                  Deal
-                </span>
-                <img src={product.images[0]?.url} alt={product.images[0]?.alt || product.name} />
-              </Link>
-
-              <div className="home-product-card__body">
-                <span>{formatLabel(product.category)}</span>
-                <h3>{product.name}</h3>
-                <p>{formatPrice(product.price)}</p>
-                <button type="button" onClick={() => handleAddToCart(product)}>
-                  <ShoppingCart size={15} strokeWidth={2} />
-                  Add to cart
-                </button>
+          return (
+            <div key={point.label} className="home-market__proof-item">
+              <span>
+                <Icon size={25} strokeWidth={2} />
+              </span>
+              <div>
+                <strong>{point.label}</strong>
+                <small>{point.text}</small>
               </div>
-            </article>
-          ))}
-        </div>
+            </div>
+          );
+        })}
       </section>
 
-      <section className="home-market__strip" aria-label="Muwas product preview strip">
-        {storyStrip.map((image, index) => (
-          <Link key={`${image}-${index}`} to="/products" className="home-market__strip-image">
-            <img src={image} alt="" />
-          </Link>
-        ))}
-      </section>
-
-      <section className="home-market__layout">
+      <section className="home-market__layout home-market__layout--showcase">
         <div className="home-market__main">
           <div className="home-market__section-heading">
-            <h2>Featured bottles</h2>
+            <div>
+              <span>
+                <Sparkles size={18} strokeWidth={2} />
+                Featured bottles
+              </span>
+              <p>from this week's shelf.</p>
+            </div>
             <Link to="/products">
               View all
               <ArrowRight size={15} strokeWidth={2} />
@@ -128,43 +123,75 @@ const Landing = () => {
 
           <div className="home-market__product-grid">
             {homeProducts.map((product) => (
-              <article key={`${product._id}-featured`} className="home-product-card">
+              <article key={product._id} className="home-product-card">
                 <Link to={`/product/${product._id}`} className="home-product-card__media">
                   <img src={product.images[0]?.url} alt={product.images[0]?.alt || product.name} />
                 </Link>
 
                 <div className="home-product-card__body">
-                  <span>{product.badge}</span>
+                  <span>{formatLabel(product.category)}</span>
                   <h3>{product.name}</h3>
-                  <p>{product.shortDescription}</p>
+                  <p>{formatPrice(product.price)}</p>
+                  <button type="button" onClick={() => handleAddToCart(product)}>
+                    <ShoppingCart size={16} strokeWidth={2.1} />
+                    Add to cart
+                  </button>
                 </div>
               </article>
             ))}
           </div>
+
+          <Link to="/products" className="home-market__carousel-next" aria-label="Browse more featured bottles">
+            <ChevronRight size={24} strokeWidth={2.2} />
+          </Link>
         </div>
 
         <aside className="home-market__side">
-          <label className="home-market__search">
-            <Search size={17} strokeWidth={2} />
-            <input type="search" placeholder="Search Muwas store" />
-            <Link to="/products">Search</Link>
-          </label>
-
-          <div className="home-market__notice">
-            <Truck size={22} strokeWidth={1.9} />
+          <div className="home-market__section-heading">
             <div>
-              <strong>Quick delivery is available now.</strong>
-              <span>Kampala pickup, boda delivery, and wholesale fulfillment.</span>
+              <span>
+                <Sparkles size={18} strokeWidth={2} />
+                Explore our collection
+              </span>
             </div>
           </div>
 
-          <div className="home-market__notice home-market__notice--red">
-            <Package size={22} strokeWidth={1.9} />
-            <div>
-              <strong>Wholesale portal ready.</strong>
-              <span>Approved buyers can place bulk orders with partner pricing.</span>
-            </div>
+          <form className="home-market__search" onSubmit={handleCollectionSearch}>
+            <Search size={19} strokeWidth={2} />
+            <input
+              type="search"
+              value={collectionQuery}
+              onChange={(event) => setCollectionQuery(event.target.value)}
+              placeholder="Search products..."
+              aria-label="Search products"
+            />
+            <button type="submit">Search</button>
+          </form>
+
+          <div className="home-category-grid" aria-label="Shop categories">
+            {categoryTiles.map((category) => {
+              const Icon = category.icon;
+
+              return (
+                <Link key={category.label} to={`/products?search=${category.query}`} className="home-category-card">
+                  <span>
+                    <Icon size={28} strokeWidth={1.8} />
+                  </span>
+                  <strong>{category.label}</strong>
+                </Link>
+              );
+            })}
           </div>
+
+          <Link to="/contact" className="home-market__location">
+            <MapPin size={33} strokeWidth={2.1} />
+            <div>
+              <strong>Location</strong>
+              <span>Masaka Road corridor, Uganda</span>
+            </div>
+            <span className="home-market__map-route" aria-hidden="true" />
+            <MapPin size={33} strokeWidth={2.1} />
+          </Link>
         </aside>
       </section>
     </div>

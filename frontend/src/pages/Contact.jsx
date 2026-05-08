@@ -2,11 +2,13 @@ import React, { useState } from 'react';
 import {
   Calendar,
   Clock,
+  Headphones,
   Mail,
   MapPin,
   Phone,
   Send,
   Sparkles,
+  UsersRound,
 } from 'lucide-react';
 import { fetchWithApiFallback } from '../utils/api';
 
@@ -25,6 +27,24 @@ const contactCards = [
     icon: Mail,
     title: 'Email team',
     lines: ['info@muwasdistilling.ug', 'tours@muwasdistilling.ug'],
+  },
+];
+
+const contactEditions = [
+  {
+    eyebrow: '01',
+    title: 'Retail & Orders',
+    text: 'Bottle questions, order updates, and product support.',
+  },
+  {
+    eyebrow: '02',
+    title: 'Tours & Tastings',
+    text: 'Farm visits, guided tastings, and private group bookings.',
+  },
+  {
+    eyebrow: '03',
+    title: 'Wholesale Desk',
+    text: 'Stock enquiries, retail partnerships, and trade setup.',
   },
 ];
 
@@ -99,6 +119,9 @@ const Contact = () => {
     <div className="contact-page">
       <div className="contact-page__inner">
         <section className="contact-hero">
+          <span className="contact-hero__curve contact-hero__curve--one" aria-hidden="true" />
+          <span className="contact-hero__curve contact-hero__curve--two" aria-hidden="true" />
+          <span className="contact-hero__curve contact-hero__curve--three" aria-hidden="true" />
           <div className="contact-hero__copy">
             <p className="contact-hero__eyebrow">Contact, Tours, Wholesale Support</p>
             <h1>Plan a visit, ask about a bottle, or reach the Muwas team directly.</h1>
@@ -125,6 +148,7 @@ const Contact = () => {
           </div>
 
           <div className="contact-hero__visual">
+            <span className="contact-hero__image-ring" aria-hidden="true" />
             <img
               src="/images/vintage_distillation.png"
               alt="Vintage-style distillation artwork for Muwas Distilling"
@@ -137,9 +161,29 @@ const Contact = () => {
           </div>
         </section>
 
+        <section className="contact-edition" aria-label="Contact options">
+          <div className="contact-edition__masthead">
+            <span>Muwas Dispatch</span>
+            <strong>Choose the right desk</strong>
+          </div>
+
+          <div className="contact-edition__grid">
+            {contactEditions.map((item) => (
+              <article key={item.title} className="contact-edition__card">
+                <span>{item.eyebrow}</span>
+                <h2>{item.title}</h2>
+                <p>{item.text}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+
         <section className="contact-layout">
           <aside className="contact-sidebar">
             <div className="contact-sidebar__panel">
+              <span className="contact-sidebar__badge">
+                <Headphones size={22} strokeWidth={1.9} />
+              </span>
               <p>Visit & support</p>
               <h2>What happens next</h2>
               <ul>
@@ -150,6 +194,9 @@ const Contact = () => {
             </div>
 
             <div className="contact-sidebar__panel">
+              <span className="contact-sidebar__badge">
+                <UsersRound size={22} strokeWidth={1.9} />
+              </span>
               <p>Tour information</p>
               <h2>Before you book</h2>
               <ul>

@@ -242,7 +242,7 @@ const Wholesale = () => {
   };
 
   return (
-    <div className="products-page">
+    <div className="products-page wholesale-page">
       <div className="products-page__inner">
         <section className="products-showcase">
           <div className="products-showcase__hero">

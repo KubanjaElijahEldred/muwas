@@ -10,11 +10,31 @@ const RETRYABLE_STATUS_CODES = new Set([502, 503, 504]);
 
 const isLocalHostname = (hostname = '') => /^(localhost|127\.0\.0\.1)$/i.test(hostname);
 
+const getUrlHostname = (url = '') => {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return '';
+  }
+};
+
 const resolveApiBaseUrl = () => {
   const configuredBaseUrl = normalizeBaseUrl(import.meta.env.VITE_API_URL);
 
   if (typeof window === 'undefined') {
     return configuredBaseUrl;
+  }
+
+  const configuredBackendOrigin = normalizeOrigin(import.meta.env.VITE_BACKEND_DIRECT_ORIGIN);
+  const configuredBackendHostname = getUrlHostname(configuredBackendOrigin);
+  const canUseConfiguredBackendOrigin =
+    /^https?:\/\//i.test(configuredBackendOrigin) &&
+    Boolean(configuredBackendHostname) &&
+    !isLocalHostname(window.location.hostname) &&
+    !isLocalHostname(configuredBackendHostname);
+
+  if (configuredBaseUrl === '/api' && canUseConfiguredBackendOrigin) {
+    return `${configuredBackendOrigin}/api`;
   }
 
   const isLocalApiUrl = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\/api/i.test(
