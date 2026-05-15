@@ -1,48 +1,82 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, ShoppingCart } from 'lucide-react';
 import { useCart } from '../contexts/CartContext';
+import { useAuth } from '../contexts/AuthContext';
 
-const PRODUCTS = [
+const FALLBACK_PRODUCTS = [
   {
-    _id: 'kakoge-gin',
+    _id: 'fallback-kakoge-gin',
     name: 'Kakoge Gin',
-    category: 'GIN',
+    category: 'gin',
     price: 42000,
     abv: 37.5,
-    description:
-      'A vibrant botanical gin inspired by Uganda\'s landscape. Crisp, aromatic and unapologetically authentic.',
-    image: '/images/kakoge.png',
+    shortDescription:
+      "A vibrant botanical gin inspired by Uganda's landscape. Crisp, aromatic and unapologetically authentic.",
+    images: [{ url: '/images/kakoge.png', alt: 'Kakoge Gin bottle' }],
   },
   {
-    _id: 'coffee-vodka',
+    _id: 'fallback-coffee-vodka',
     name: 'Coffee Flavoured Vodka',
-    category: 'VODKA',
+    category: 'vodka',
     price: 45000,
     abv: 42,
-    description:
+    shortDescription:
       'Smooth. Rich. Distinctly Ugandan. Crafted with premium vodka and locally sourced coffee beans.',
-    image: '/images/vodka.png',
+    images: [{ url: '/images/vodka.png', alt: 'Coffee Flavoured Vodka bottle' }],
   },
 ];
 
-const formatUGX = (value) => `UGX ${value.toLocaleString()}`;
+const formatUGX = (value) => `UGX ${Number(value || 0).toLocaleString()}`;
+const getProductImage = (product = {}) => product.images?.[0]?.url || '/images/product.png';
+const getProductDescription = (product = {}) =>
+  product.shortDescription || product.description || 'Crafted in Uganda.';
 
 const Products = () => {
   const { addToCart } = useCart();
+  const { api } = useAuth();
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('all');
+  const [products, setProducts] = useState(FALLBACK_PRODUCTS);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadProducts = async () => {
+      try {
+        const response = await api.get('/products?limit=200');
+        const liveProducts = Array.isArray(response.data?.products) ? response.data.products : [];
+
+        if (!mounted) {
+          return;
+        }
+
+        setProducts(liveProducts.length > 0 ? liveProducts : FALLBACK_PRODUCTS);
+      } catch {
+        if (mounted) {
+          setProducts(FALLBACK_PRODUCTS);
+        }
+      }
+    };
+
+    loadProducts();
+
+    return () => {
+      mounted = false;
+    };
+  }, [api]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return PRODUCTS.filter((item) => {
-      const matchesCategory =
-        category === 'all' || item.category.toLowerCase() === category.toLowerCase();
+
+    return products.filter((item) => {
+      const itemCategory = String(item.category || '').toLowerCase();
+      const matchesCategory = category === 'all' || itemCategory === category;
       const matchesQuery = !q
-        || `${item.name} ${item.category} ${item.description}`.toLowerCase().includes(q);
+        || `${item.name} ${item.category} ${getProductDescription(item)}`.toLowerCase().includes(q);
       return matchesCategory && matchesQuery;
     });
-  }, [category, query]);
+  }, [products, category, query]);
 
   return (
     <div className="products-reference-page">
@@ -106,11 +140,11 @@ const Products = () => {
         <div className="products-reference-grid">
           {filtered.map((product) => (
             <article key={product._id} className="products-reference-card">
-              <img src={product.image} alt={product.name} className="products-reference-card__image" />
+              <img src={getProductImage(product)} alt={product.name} className="products-reference-card__image" />
               <div className="products-reference-card__body">
-                <span>{product.category}</span>
+                <span>{String(product.category || '').toUpperCase()}</span>
                 <h2>{product.name}</h2>
-                <p>{product.description}</p>
+                <p>{getProductDescription(product)}</p>
                 <strong>{formatUGX(product.price)}</strong>
                 <small>{product.abv}% ABV</small>
                 <div className="products-reference-card__actions">
@@ -122,8 +156,12 @@ const Products = () => {
                     onClick={() => addToCart({
                       _id: product._id,
                       name: product.name,
+                      category: product.category,
                       price: product.price,
-                      images: [{ url: product.image, alt: product.name }],
+                      wholesalePrice: product.wholesalePrice,
+                      images: product.images?.length
+                        ? product.images
+                        : [{ url: getProductImage(product), alt: product.name }],
                     })}
                   >
                     <ShoppingCart size={15} />

@@ -23,12 +23,12 @@ const contactCards = [
   {
     icon: Phone,
     title: 'Call support',
-    lines: ['+256 123 456 789', 'Mon-Sat, 9:00 AM to 6:00 PM'],
+    lines: ['+256772522646', 'Call or WhatsApp any time'],
   },
   {
     icon: Mail,
     title: 'Email team',
-    lines: ['info@muwasdistilling.ug', 'tours@muwasdistilling.ug'],
+    lines: ['muwasdistilling@gmail.com', 'For orders, tours, and support'],
   },
 ];
 

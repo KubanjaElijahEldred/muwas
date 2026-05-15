@@ -35,6 +35,49 @@ const ingredients = [
   },
 ];
 
+const editorialCards = [
+  {
+    image: '/images/image1.png',
+    title: 'Harvested By Hand',
+    description: 'Every season starts with careful handpicking from trusted local growers.',
+  },
+  {
+    image: '/images/image3.png',
+    title: 'Rooted In Orchards',
+    description: 'Fresh citrus and botanicals are sourced at peak ripeness for bold flavor.',
+  },
+  {
+    image: '/images/image4.png',
+    title: 'Distilled With Precision',
+    description: 'Our team refines every batch with a balance of tradition and modern craft.',
+  },
+  {
+    image: '/images/image5.png',
+    title: 'From Land To Bottle',
+    description: 'The farm landscape shapes the character, aroma, and soul of each spirit.',
+  },
+  {
+    image: '/images/image6.png',
+    title: 'Signature Spirits',
+    description: 'Kakoge Gin and Coffee Flavoured Vodka represent our proudly Ugandan craft.',
+  },
+  {
+    image: '/images/image7.png',
+    title: 'Small Batch Quality',
+    description: 'Controlled batch sizes help us keep consistency, clarity, and premium finish.',
+  },
+  {
+    image: '/images/image8.png',
+    title: 'Cultural Heritage',
+    description: 'Our story blends resilience, local identity, and meaningful craftsmanship.',
+  },
+  {
+    image: '/images/product.png',
+    title: 'Built For Moments',
+    description: 'From celebrations to tasting tours, each bottle is made to be remembered.',
+  },
+];
+
 const Story = () => {
   const [showFullStory, setShowFullStory] = useState(false);
 
@@ -239,18 +282,13 @@ const Story = () => {
       </div>
 
       <section className="story-editorial-grid">
-        {[
-          '/images/image1.png',
-          '/images/image3.png',
-          '/images/image4.png',
-          '/images/image5.png',
-          '/images/image6.png',
-          '/images/image7.png',
-          '/images/image8.png',
-          '/images/product.png',
-        ].map((src, index) => (
-          <article key={`${src}-${index}`} className="story-editorial-card">
-            <img src={src} alt="Muwas editorial story card" />
+        {editorialCards.map((item) => (
+          <article key={item.title} className="story-editorial-card">
+            <img src={item.image} alt={item.title} />
+            <div className="story-editorial-card__copy">
+              <h5>{item.title}</h5>
+              <p>{item.description}</p>
+            </div>
           </article>
         ))}
       </section>
