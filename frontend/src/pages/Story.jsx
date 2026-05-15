@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Mail, MapPin, Phone, QrCode } from 'lucide-react';
 
 const ingredients = [
   {
@@ -173,6 +173,65 @@ const Story = () => {
           </div>
         </section>
       </div>
+
+      <section className="story-editorial-grid">
+        {[
+          '/images/image1.png',
+          '/images/image3.png',
+          '/images/image4.png',
+          '/images/image5.png',
+          '/images/image6.png',
+          '/images/image7.png',
+          '/images/image8.png',
+          '/images/product.png',
+        ].map((src, index) => (
+          <article key={`${src}-${index}`} className="story-editorial-card">
+            <img src={src} alt="Muwas editorial story card" />
+          </article>
+        ))}
+      </section>
+
+      <section className="contact-info-strip">
+        <article>
+          <MapPin size={24} />
+          <div>
+            <strong>OUR LOCATION</strong>
+            <span>Muwas Farm, Masaka Road corridor, Uganda</span>
+          </div>
+        </article>
+        <article>
+          <Phone size={24} />
+          <div>
+            <strong>CALL / WHATSAPP</strong>
+            <span>+256 123 456 789 • Mon-Sat, 9:00 AM to 6:00 PM EAT</span>
+          </div>
+        </article>
+        <article>
+          <Mail size={24} />
+          <div>
+            <strong>EMAIL US</strong>
+            <span>info@muwasdistilling.ug • tours@muwasdistilling.ug</span>
+          </div>
+        </article>
+        <article>
+          <QrCode size={24} />
+          <div>
+            <strong>SCAN TO CONNECT</strong>
+            <span>Scan our code for any further information</span>
+          </div>
+        </article>
+      </section>
+
+      <section className="contact-cta-strip">
+        <div>
+          <strong>LET&apos;S CREATE MEMORABLE EXPERIENCES</strong>
+          <span>From our land to your glass, we&apos;re honoured to be part of your journey.</span>
+        </div>
+        <Link to="/products">
+          EXPLORE OUR SPIRITS
+          <ArrowRight size={16} />
+        </Link>
+      </section>
     </div>
   );
 };

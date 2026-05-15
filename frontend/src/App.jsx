@@ -7,6 +7,7 @@ import Footer from './components/Footer';
 import SiteAssistant from './components/SiteAssistant';
 import MobileTabBar from './components/MobileTabBar';
 import ToastHost from './components/ToastHost';
+import GlobalInfoStrips from './components/GlobalInfoStrips';
 import Landing from './pages/Landing';
 import Story from './pages/Story';
 import Products from './pages/Products';
@@ -106,6 +107,8 @@ function App() {
   const AppLayout = () => {
     const location = useLocation();
     const isHome = location.pathname === '/';
+    const isAdminRoute = location.pathname.startsWith('/admin');
+    const hasInlinePageStrips = location.pathname === '/contact' || location.pathname === '/story';
 
     return (
       <div className="muwas-app-root min-h-screen flex flex-col">
@@ -171,6 +174,7 @@ function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>
+        {!isAdminRoute && !hasInlinePageStrips && <GlobalInfoStrips />}
         <SiteAssistant siteProducts={siteProducts} />
         {isHome && <Footer />}
         <MobileTabBar />

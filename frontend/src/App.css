@@ -15178,3 +15178,126 @@ main,
     grid-auto-columns: minmax(220px, 220px) !important;
   }
 }
+
+/* About page organized card gallery */
+.story-editorial-grid {
+  width: min(1380px, calc(100% - 1rem));
+  margin: 0.9rem auto;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.story-editorial-card {
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid #d8d1c4;
+  background: #fff;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+  aspect-ratio: 4 / 5;
+}
+
+.story-editorial-card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.story-journal-page .contact-info-strip,
+.story-journal-page .contact-cta-strip {
+  width: min(1380px, calc(100% - 1rem));
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.story-journal-page .contact-cta-strip {
+  margin-bottom: 1rem;
+}
+
+@media (max-width: 1200px) {
+  .story-editorial-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 860px) {
+  .story-editorial-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .story-editorial-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Home mobile readability fix */
+@media (max-width: 760px) {
+  .home-market__hero--image {
+    min-height: 520px !important;
+    align-items: flex-start !important;
+    background-position: 62% center !important;
+  }
+
+  .home-market__hero-copy {
+    top: 0.5rem !important;
+    left: 0.5rem !important;
+    right: 0.5rem !important;
+    width: auto !important;
+    padding: 0.55rem 0.6rem !important;
+    border-radius: 10px !important;
+    background: rgba(248, 246, 241, 0.88) !important;
+    backdrop-filter: blur(3px);
+  }
+
+  .home-market__hero-copy p {
+    font-size: 0.68rem !important;
+    line-height: 1.15 !important;
+  }
+
+  .home-market__hero-copy h1 {
+    font-size: clamp(2.3rem, 10.5vw, 3.1rem) !important;
+    line-height: 0.93 !important;
+    margin-top: 0.2rem;
+  }
+
+  .home-market__hero-copy > span {
+    font-size: 0.93rem !important;
+    line-height: 1.3 !important;
+    color: #181818 !important;
+    max-width: 100% !important;
+  }
+
+  .home-market__hero-actions {
+    margin-top: 0.45rem !important;
+    gap: 0.45rem !important;
+  }
+
+  .home-market__hero-actions a {
+    min-height: 44px !important;
+    font-size: 0.72rem !important;
+    padding: 0 0.75rem !important;
+  }
+
+  .home-ref-proof {
+    margin-top: 0.55rem !important;
+  }
+}
+
+/* Global strips spacing for all pages */
+.global-info-strip,
+.global-cta-strip {
+  width: min(1380px, calc(100% - 1rem));
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.global-info-strip {
+  margin-top: 0.8rem;
+}
+
+.global-cta-strip {
+  margin-bottom: 0.8rem;
+}
