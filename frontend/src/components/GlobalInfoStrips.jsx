@@ -10,21 +10,21 @@ const GlobalInfoStrips = () => {
           <MapPin size={24} />
           <div>
             <strong>OUR LOCATION</strong>
-            <span>Muwas Farm, Masaka Road corridor, Uganda</span>
+            <span>Nantale Oasis breadfruit, Kaseesa Village, Kyabutaika Parish, Kakkooge Sub-county, Nakasongola District</span>
           </div>
         </article>
         <article>
           <Phone size={24} />
           <div>
             <strong>CALL / WHATSAPP</strong>
-            <span>+256 123 456 789 • Mon-Sat, 9:00 AM to 6:00 PM EAT</span>
+            <span>+256772522646</span>
           </div>
         </article>
         <article>
           <Mail size={24} />
           <div>
             <strong>EMAIL US</strong>
-            <span>info@muwasdistilling.ug • tours@muwasdistilling.ug</span>
+            <span>muwasdistilling@gmail.com</span>
           </div>
         </article>
         <article>
