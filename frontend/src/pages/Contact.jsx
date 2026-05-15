@@ -148,10 +148,9 @@ const Contact = () => {
           </div>
 
           <div className="contact-hero__visual">
-            <span className="contact-hero__image-ring" aria-hidden="true" />
             <img
-              src="/images/vintage_distillation.png"
-              alt="Vintage-style distillation artwork for Muwas Distilling"
+              src="/images/product.png"
+              alt="Muwas bottles and botanicals"
               className="contact-hero__image"
             />
             <div className="contact-hero__note">
@@ -425,6 +424,25 @@ const Contact = () => {
               )}
             </div>
           </div>
+
+          <aside className="contact-product-rail">
+            <article className="contact-product-card">
+              <img src="/images/vodka.png" alt="Coffee Flavoured Vodka" />
+              <div>
+                <span>VODKA</span>
+                <h3>Coffee Flavoured Vodka</h3>
+                <p>Smooth. Rich. Distinctly Ugandan.</p>
+              </div>
+            </article>
+            <article className="contact-product-card">
+              <img src="/images/kakoge.png" alt="Kakoge Gin" />
+              <div>
+                <span>GIN</span>
+                <h3>Kakoge Gin</h3>
+                <p>A vibrant botanical gin inspired by Uganda&apos;s landscape.</p>
+              </div>
+            </article>
+          </aside>
         </section>
       </div>
     </div>

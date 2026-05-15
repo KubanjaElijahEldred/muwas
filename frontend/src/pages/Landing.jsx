@@ -14,14 +14,29 @@ const Landing = () => {
   const [query, setQuery] = useState('');
 
   const featured = useMemo(
-    () =>
-      fallbackProducts.map((product) => ({
-        id: product._id,
-        name: product.name,
-        category: product.category,
-        tastingNotes: product.tastingNotes || [],
-        image: product.images?.[0]?.url || '/images/home.png',
-      })),
+    () => [
+      {
+        id: 'home-vodka',
+        name: 'Coffee Flavoured Vodka',
+        category: 'vodka',
+        tastingNotes: ['coffee', 'smooth'],
+        image: '/images/vodka.png',
+      },
+      {
+        id: 'home-kakoge',
+        name: 'Kakoge Gin',
+        category: 'gin',
+        tastingNotes: ['botanical', 'citrus'],
+        image: '/images/kakoge.png',
+      },
+      {
+        id: 'home-banner',
+        name: 'Muwas Signature Pair',
+        category: 'collection',
+        tastingNotes: ['uganda', 'crafted'],
+        image: '/images/product.png',
+      },
+    ],
     []
   );
 
@@ -93,6 +108,10 @@ const Landing = () => {
             {filteredFeatured.map((item) => (
               <article key={item.id}>
                 <img src={item.image} alt={item.name} />
+                <div className="home-ref-card__details">
+                  <strong>{item.name}</strong>
+                  <span>{item.category.toUpperCase()}</span>
+                </div>
               </article>
             ))}
           </div>
