@@ -340,6 +340,31 @@ const Story = () => {
         ))}
       </section>
 
+      <section className="story-production-area">
+        <article className="story-production-area__copy">
+          <p>PRODUCTION AREA</p>
+          <h3>Where Craft Meets Precision</h3>
+          <span>
+            From carefully prepared botanicals to controlled small-batch distillation, our
+            production floor combines traditional craft with disciplined quality checks at every
+            stage.
+          </span>
+          <span>
+            Each run is monitored to preserve clarity, aroma, and consistency, ensuring every
+            bottle carries the signature Muwas character from start to finish.
+          </span>
+        </article>
+
+        <div className="story-production-area__gallery">
+          <figure>
+            <img src="/images/production1.png" alt="Muwas production area and distillation setup" />
+          </figure>
+          <figure>
+            <img src="/images/production2.png" alt="Muwas team working in the production area" />
+          </figure>
+        </div>
+      </section>
+
       <section className="contact-info-strip">
         <article>
           <MapPin size={24} />
