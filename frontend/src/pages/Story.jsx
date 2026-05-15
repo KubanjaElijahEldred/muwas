@@ -134,7 +134,7 @@ const Story = () => {
             </p>
           </div>
 
-          <div className="story-journal__ingredient-grid">
+          <div className="story-journal__ingredient-grid" dir="rtl">
             {ingredients.map((item) => (
               <article key={item.title} className="story-journal__ingredient-card">
                 <img src={item.image} alt={item.title} />

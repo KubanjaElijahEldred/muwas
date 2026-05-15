@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Calendar,
   Clock,
+  QrCode,
   Headphones,
   Mail,
   MapPin,
@@ -148,6 +150,7 @@ const Contact = () => {
           </div>
 
           <div className="contact-hero__visual">
+            <Link to="/register" className="contact-hero__wholesale">WHOLESALE LOGIN</Link>
             <img
               src="/images/product.png"
               alt="Muwas bottles and botanicals"
@@ -443,6 +446,48 @@ const Contact = () => {
               </div>
             </article>
           </aside>
+        </section>
+
+        <section className="contact-info-strip">
+          <article>
+            <MapPin size={24} />
+            <div>
+              <strong>OUR LOCATION</strong>
+              <span>Muwas Farm, Masaka Road corridor, Uganda</span>
+            </div>
+          </article>
+          <article>
+            <Phone size={24} />
+            <div>
+              <strong>CALL / WHATSAPP</strong>
+              <span>+256 123 456 789 • Mon-Sat, 9:00 AM to 6:00 PM EAT</span>
+            </div>
+          </article>
+          <article>
+            <Mail size={24} />
+            <div>
+              <strong>EMAIL US</strong>
+              <span>info@muwasdistilling.ug • tours@muwasdistilling.ug</span>
+            </div>
+          </article>
+          <article>
+            <QrCode size={24} />
+            <div>
+              <strong>SCAN TO CONNECT</strong>
+              <span>Scan our code for any further information</span>
+            </div>
+          </article>
+        </section>
+
+        <section className="contact-cta-strip">
+          <div>
+            <strong>LET&apos;S CREATE MEMORABLE EXPERIENCES</strong>
+            <span>From our land to your glass, we&apos;re honoured to be part of your journey.</span>
+          </div>
+          <Link to="/products">
+            EXPLORE OUR SPIRITS
+            <Send size={16} />
+          </Link>
         </section>
       </div>
     </div>

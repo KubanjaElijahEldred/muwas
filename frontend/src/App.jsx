@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { CartProvider } from './contexts/CartContext';
 import Header from './components/Header';
@@ -104,6 +104,9 @@ function App() {
   };
 
   const AppLayout = () => {
+    const location = useLocation();
+    const isHome = location.pathname === '/';
+
     return (
       <div className="muwas-app-root min-h-screen flex flex-col">
         <Header siteProducts={siteProducts} theme={theme} onToggleTheme={toggleTheme} />
@@ -169,7 +172,7 @@ function App() {
           </Routes>
         </main>
         <SiteAssistant siteProducts={siteProducts} />
-        <Footer />
+        {isHome && <Footer />}
         <MobileTabBar />
         <ToastHost />
       </div>

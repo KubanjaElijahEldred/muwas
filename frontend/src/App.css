@@ -14542,3 +14542,639 @@ main,
 .muwas-mobile-tabs__item span:last-child {
   font-size: 0.65rem;
 }
+
+/* Mobile tabs: only visible on mobile */
+.muwas-mobile-tabs {
+  display: none !important;
+}
+
+@media (max-width: 980px) {
+  .muwas-mobile-tabs {
+    display: grid !important;
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+  }
+}
+
+/* Contact page final match pass (target image style) */
+.contact-page {
+  background: #f0efec !important;
+  padding: 0.7rem !important;
+}
+
+.contact-page__inner {
+  width: calc(100% - 0.2rem) !important;
+  max-width: none !important;
+  margin: 0 auto !important;
+  display: grid;
+  gap: 0.65rem;
+}
+
+.contact-hero {
+  position: relative;
+  min-height: 410px;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 0.95fr) !important;
+  gap: 0 !important;
+  border-radius: 14px !important;
+  border: 1px solid #d6cec2 !important;
+  background: #f7f6f3 !important;
+  overflow: hidden;
+}
+
+.contact-hero::before,
+.contact-hero__curve,
+.contact-hero__image-ring {
+  display: none !important;
+}
+
+.contact-hero__copy {
+  padding: 1.2rem 1.1rem !important;
+  align-content: center;
+}
+
+.contact-hero__eyebrow {
+  color: #ff5a00 !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.09em !important;
+}
+
+.contact-hero__copy h1 {
+  color: #171717 !important;
+  font-size: clamp(2.4rem, 4.8vw, 5rem) !important;
+  line-height: 0.95 !important;
+}
+
+.contact-hero__copy > span {
+  color: #232323 !important;
+  max-width: 35rem;
+}
+
+.contact-hero__meta {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+}
+
+.contact-hero__card {
+  border: 1px solid #e0d8ce !important;
+  background: #ffffff !important;
+  border-radius: 12px !important;
+}
+
+.contact-hero__card strong {
+  color: #ff5a00 !important;
+}
+
+.contact-hero__visual {
+  position: relative;
+  min-height: 100%;
+}
+
+.contact-hero__image {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  border-radius: 0 !important;
+}
+
+.contact-hero__note {
+  position: absolute;
+  bottom: 0.75rem;
+  left: 0.75rem;
+  right: 0.75rem;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(0, 0, 0, 0.5) !important;
+  color: #fff !important;
+}
+
+.contact-hero__wholesale {
+  position: absolute;
+  right: 0.9rem;
+  top: 0.85rem;
+  z-index: 5;
+  min-height: 42px;
+  padding: 0 1rem;
+  border-radius: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(0, 0, 0, 0.82);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.75rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.contact-edition,
+.contact-layout,
+.contact-sidebar__panel,
+.contact-panel,
+.contact-product-card {
+  border-radius: 12px !important;
+  border: 1px solid #d9d1c6 !important;
+  background: #f6f6f4 !important;
+}
+
+.contact-edition {
+  padding: 0.8rem !important;
+}
+
+.contact-edition__grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+}
+
+.contact-panel {
+  padding: 0.7rem !important;
+}
+
+.contact-panel__tabs {
+  grid-template-columns: 1fr 1fr !important;
+}
+
+.contact-panel__tabs button {
+  min-height: 56px;
+  font-weight: 900;
+}
+
+.contact-panel__tabs .is-active,
+.contact-submit {
+  background: linear-gradient(180deg, #ff6e11 0%, #ff4d00 100%) !important;
+  color: #fff !important;
+}
+
+.contact-submit {
+  min-height: 54px;
+  border-radius: 9px !important;
+}
+
+@media (max-width: 1100px) {
+  .contact-hero {
+    grid-template-columns: 1fr !important;
+  }
+
+  .contact-hero__visual {
+    min-height: 280px;
+  }
+
+  .contact-hero__meta,
+  .contact-edition__grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* Final visual polish: product/contact blend + clear inputs + bottle sizing */
+.products-reference-hero__copy {
+  background:
+    linear-gradient(90deg, rgba(250, 248, 242, 0.98) 0%, rgba(250, 248, 242, 0.9) 48%, rgba(250, 248, 242, 0.3) 76%, rgba(250, 248, 242, 0) 100%) !important;
+}
+
+.products-reference-hero__media::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: min(20vw, 240px);
+  background: linear-gradient(90deg, rgba(250, 248, 242, 0.85), rgba(250, 248, 242, 0));
+  pointer-events: none;
+}
+
+.products-reference-card {
+  grid-template-columns: 280px minmax(0, 1fr) !important;
+}
+
+.products-reference-card__image {
+  min-height: 300px !important;
+  max-height: 300px !important;
+  object-fit: contain !important;
+  background: #f7f2ea;
+  padding: 0.35rem;
+}
+
+.contact-hero__copy {
+  background:
+    linear-gradient(90deg, rgba(250, 250, 248, 0.97) 0%, rgba(250, 250, 248, 0.9) 58%, rgba(250, 250, 248, 0.35) 82%, rgba(250, 250, 248, 0) 100%) !important;
+}
+
+.contact-product-card img {
+  height: 230px !important;
+  object-fit: contain !important;
+  background: #f7f2ea;
+  padding: 0.35rem;
+}
+
+.contact-field input,
+.contact-field textarea,
+.contact-field select,
+.contact-panel input,
+.contact-panel textarea,
+.contact-panel select {
+  color: #111 !important;
+  background: #fff !important;
+}
+
+.contact-field input::placeholder,
+.contact-field textarea::placeholder,
+.contact-panel input::placeholder,
+.contact-panel textarea::placeholder {
+  color: #5a5a5a !important;
+}
+
+@media (max-width: 980px) {
+  .products-reference-card {
+    grid-template-columns: 1fr !important;
+  }
+
+  .products-reference-card__image {
+    min-height: 260px !important;
+    max-height: 260px !important;
+  }
+}
+
+/* Contact page exact-match pass */
+.contact-page {
+  background: #efefed !important;
+  padding: 0.7rem !important;
+}
+
+.contact-page__inner {
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+  gap: 0.7rem !important;
+}
+
+.contact-hero,
+.contact-edition,
+.contact-layout,
+.contact-info-strip,
+.contact-cta-strip {
+  border: 1px solid #d8d0c5 !important;
+  border-radius: 12px !important;
+  background: #f8f8f6 !important;
+}
+
+.contact-hero {
+  min-height: 430px !important;
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 0.95fr) !important;
+}
+
+.contact-hero__copy {
+  background: linear-gradient(90deg, #f8f8f6 0%, #f8f8f6 70%, rgba(248, 248, 246, 0.22) 100%) !important;
+}
+
+.contact-hero__copy h1 {
+  color: #131313 !important;
+  font-size: clamp(2.5rem, 5.1vw, 5.1rem) !important;
+  line-height: 0.95 !important;
+}
+
+.contact-hero__copy h1 em,
+.contact-hero__copy h1 span {
+  color: #ff5a00 !important;
+}
+
+.contact-hero__meta {
+  margin-top: 0.8rem !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+}
+
+.contact-hero__visual {
+  min-height: 100%;
+}
+
+.contact-hero__image {
+  object-fit: cover !important;
+}
+
+.contact-edition {
+  padding: 0.9rem !important;
+}
+
+.contact-edition__grid {
+  grid-template-columns: 0.45fr 1fr 1fr 1fr !important;
+}
+
+.contact-layout {
+  grid-template-columns: minmax(260px, 0.42fr) minmax(0, 1fr) minmax(320px, 0.5fr) !important;
+  gap: 0.7rem !important;
+}
+
+.contact-sidebar__panel,
+.contact-panel,
+.contact-product-card {
+  border: 1px solid #d8d0c5 !important;
+  border-radius: 10px !important;
+  background: #faf9f7 !important;
+}
+
+.contact-panel__tabs {
+  grid-template-columns: 1fr 1fr !important;
+}
+
+.contact-panel__tabs button {
+  min-height: 56px !important;
+}
+
+.contact-panel__tabs .is-active,
+.contact-submit {
+  background: linear-gradient(180deg, #ff7415 0%, #ff4f00 100%) !important;
+  color: #fff !important;
+}
+
+.contact-field input,
+.contact-field textarea,
+.contact-field select {
+  color: #111 !important;
+  background: #fff !important;
+}
+
+.contact-product-card {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+.contact-product-card img {
+  height: 100% !important;
+  min-height: 250px;
+  object-fit: cover !important;
+  padding: 0 !important;
+  background: transparent !important;
+}
+
+.contact-product-card div {
+  padding: 0.9rem;
+  align-content: center;
+}
+
+.contact-info-strip {
+  margin-top: 0.1rem;
+  background: #121212 !important;
+  border-color: #232323 !important;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  overflow: hidden;
+}
+
+.contact-info-strip article {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.55rem;
+  align-items: center;
+  padding: 0.85rem;
+  color: #fff;
+}
+
+.contact-info-strip article + article {
+  border-left: 1px solid rgba(255, 255, 255, 0.24);
+}
+
+.contact-info-strip strong {
+  display: block;
+  color: #ff7c2a;
+  font-size: 0.83rem;
+  letter-spacing: 0.08em;
+}
+
+.contact-info-strip span {
+  display: block;
+  margin-top: 0.2rem;
+  color: #fff;
+  font-size: 0.88rem;
+}
+
+.contact-cta-strip {
+  background: linear-gradient(90deg, #cb2600 0%, #ff4f00 58%, #d82200 100%) !important;
+  border: 0 !important;
+  color: #fff;
+  padding: 0.85rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+
+.contact-cta-strip strong,
+.contact-cta-strip span {
+  display: block;
+}
+
+.contact-cta-strip strong {
+  font-size: 1.08rem;
+}
+
+.contact-cta-strip a {
+  min-height: 46px;
+  padding: 0 1rem;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.46);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+@media (max-width: 1180px) {
+  .contact-hero,
+  .contact-layout {
+    grid-template-columns: 1fr !important;
+  }
+
+  .contact-hero__meta,
+  .contact-edition__grid,
+  .contact-info-strip {
+    grid-template-columns: 1fr !important;
+  }
+
+  .contact-product-card {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* About/Story image organization + horizontal ingredient scroll */
+.story-journal {
+  width: min(1440px, 100%) !important;
+}
+
+.story-journal__hero {
+  align-items: stretch;
+}
+
+.story-journal__hero-image {
+  min-height: 430px !important;
+}
+
+.story-journal__hero-image img {
+  object-fit: cover !important;
+  object-position: center;
+}
+
+.story-journal__image-card {
+  min-height: 220px !important;
+}
+
+.story-journal__image-card--wide {
+  min-height: 220px !important;
+}
+
+.story-journal__bottom-row figure {
+  min-height: 185px;
+}
+
+.story-journal__spirits-image {
+  min-height: 330px;
+}
+
+.story-journal__ingredient-grid {
+  display: grid !important;
+  grid-auto-flow: column !important;
+  grid-auto-columns: minmax(260px, 260px) !important;
+  grid-template-columns: none !important;
+  gap: 0.65rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 0.3rem;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+}
+
+.story-journal__ingredient-grid::-webkit-scrollbar {
+  height: 8px;
+}
+
+.story-journal__ingredient-grid::-webkit-scrollbar-thumb {
+  background: rgba(255, 94, 0, 0.5);
+  border-radius: 999px;
+}
+
+.story-journal__ingredient-card {
+  scroll-snap-align: start;
+  min-height: 310px;
+}
+
+.story-journal__ingredient-card img {
+  height: 135px !important;
+  object-fit: cover !important;
+}
+
+/* Contact top card rail like reference */
+.contact-hero__meta {
+  display: grid !important;
+  grid-auto-flow: column !important;
+  grid-auto-columns: minmax(220px, 220px) !important;
+  grid-template-columns: none !important;
+  overflow-x: auto;
+  overflow-y: hidden;
+  gap: 0.55rem;
+  padding: 0.1rem 0.1rem 0.5rem;
+  scroll-snap-type: x mandatory;
+}
+
+.contact-hero__meta::-webkit-scrollbar {
+  height: 8px;
+}
+
+.contact-hero__meta::-webkit-scrollbar-thumb {
+  background: rgba(255, 95, 0, 0.45);
+  border-radius: 999px;
+}
+
+.contact-hero__card {
+  scroll-snap-align: start;
+  border-radius: 16px !important;
+}
+
+@media (max-width: 1180px) {
+  .story-journal__ingredient-grid {
+    grid-auto-columns: minmax(220px, 220px) !important;
+  }
+
+  .story-journal__hero-image {
+    min-height: 320px !important;
+  }
+}
+
+/* Decongest + center rails (contact + about) */
+.story-journal__right {
+  display: grid;
+  gap: 0.95rem;
+}
+
+.story-journal__ingredient-grid {
+  width: min(100%, 1180px);
+  margin: 0 auto;
+  grid-auto-columns: minmax(280px, 280px) !important;
+  justify-content: start;
+  padding: 0.3rem 0.2rem 0.6rem;
+  gap: 0.8rem !important;
+}
+
+.story-journal__ingredient-card {
+  min-height: 325px;
+  border-radius: 14px !important;
+}
+
+.story-journal__ingredient-card div {
+  padding: 0.78rem !important;
+}
+
+.story-journal__ingredient-card h5 {
+  font-size: 0.95rem !important;
+}
+
+.story-journal__ingredient-card p {
+  font-size: 0.94rem !important;
+  line-height: 1.45 !important;
+}
+
+.contact-hero__meta {
+  width: min(100%, 980px);
+  margin: 0.85rem auto 0 !important;
+  grid-auto-columns: minmax(235px, 235px) !important;
+  justify-content: center;
+  padding: 0.2rem 0.2rem 0.6rem !important;
+  gap: 0.7rem !important;
+}
+
+.contact-hero__card {
+  min-height: 188px;
+  padding: 0.9rem !important;
+}
+
+.contact-layout {
+  width: min(100%, 1320px);
+  margin: 0 auto;
+  gap: 0.85rem !important;
+}
+
+.contact-product-rail {
+  gap: 0.85rem !important;
+}
+
+.contact-product-card {
+  min-height: 270px;
+}
+
+.contact-product-card div {
+  padding: 1rem !important;
+}
+
+.contact-panel,
+.contact-sidebar__panel {
+  padding: 0.9rem !important;
+}
+
+.contact-form__grid {
+  gap: 0.8rem !important;
+}
+
+@media (max-width: 1180px) {
+  .story-journal__ingredient-grid {
+    grid-auto-columns: minmax(240px, 240px) !important;
+  }
+
+  .contact-hero__meta {
+    grid-auto-columns: minmax(220px, 220px) !important;
+  }
+}
