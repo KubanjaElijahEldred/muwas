@@ -174,9 +174,9 @@ function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>
-        {!isAdminRoute && !hasInlinePageStrips && <GlobalInfoStrips />}
         <SiteAssistant siteProducts={siteProducts} />
         {isHome && <Footer />}
+        {!isAdminRoute && !hasInlinePageStrips && <GlobalInfoStrips />}
         <MobileTabBar />
         <ToastHost />
       </div>

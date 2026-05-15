@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Mail, MapPin, Phone, QrCode } from 'lucide-react';
 
@@ -36,8 +36,72 @@ const ingredients = [
 ];
 
 const Story = () => {
+  const [showFullStory, setShowFullStory] = useState(false);
+
   return (
     <div className="story-journal-page">
+      <section className="story-full-toggle">
+        <button type="button" onClick={() => setShowFullStory((current) => !current)}>
+          {showFullStory ? 'Hide Our Story' : 'Our Story'}
+        </button>
+      </section>
+
+      {showFullStory && (
+        <section className="story-full-sheet">
+          <header className="story-full-sheet__header">
+            <strong>Muwas Distilling Story</strong>
+            <span>
+              Tel: +256772522646 • muwasdistilling@gmail.com • Nantale Oasis breadfruit, Kaseesa
+              Village, Kyabutaika Parish, Kakkooge Sub-county, Nakasongola District
+            </span>
+          </header>
+
+          <div className="story-full-sheet__body">
+            <h2>Options for Label Backstory</h2>
+            <ol>
+              <li>
+                Forged in the heart of Uganda during the stillness of the pandemic, this gin is a
+                tribute to resilience and hope. Crafted from homegrown bananas, lemongrass, and
+                citrus, it transforms humble ingredients into a bold spirit born of struggle and
+                determination. Every sip honors the culture that carried us forward and the dreams
+                that refused to fade.
+              </li>
+              <li>
+                In the quiet of a paused world, this gin was born where bananas, lemongrass, and
+                citrus rose from the soil like a promise. Distilled through hardship, it carries
+                the soul of a people who turned struggle into spirit. Sip by sip, it sings of
+                resilience, roots, and the hope that grew when everything else stood still.
+              </li>
+              <li>
+                Born on Ugandan soil during a time of stillness and struggle, this spirit is a
+                quiet triumph of resilience. From our fields came bananas, lemongrass, and citrus,
+                humble gifts transformed with care and courage. Every drop carries the weight of
+                what we endured, and the light of what we dreamed.
+              </li>
+              <li>
+                When the world shut down, we turned to our land and to each other. From the
+                bananas we grew and the lemongrass we gathered, this gin was born, not just from
+                ingredients, but from the will to create something meaningful. It is our story in a
+                bottle: a spirit shaped by hardship, and lifted by hope.
+              </li>
+              <li>
+                Crafted in Uganda at a time when the world hit pause, this gin is our answer to
+                uncertainty: bold, local, and full of soul. We took ripe bananas, zesty lemongrass,
+                and citrus straight from our soil and turned them into something unforgettable. It
+                is not just a drink, it is a vibe born from resilience, rooted in culture, and made
+                to be shared.
+              </li>
+              <li>
+                Distilled in the heart of Kakoooge, this gin is a rare expression of resilience and
+                refinement. Ripe bananas, handpicked lemongrass, and sun-kissed citrus are
+                transformed into a silky spirit that honors our heritage with every pour. It is a
+                taste of Uganda&apos;s elegance crafted through adversity, meant to be savored.
+              </li>
+            </ol>
+          </div>
+        </section>
+      )}
+
       <div className="story-journal">
         <section className="story-journal__left">
           <header className="story-journal__header">
