@@ -1,71 +1,42 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   ArrowRight,
-  Award,
-  BottleWine,
-  CalendarDays,
-  ChevronRight,
-  FlaskConical,
-  Leaf,
-  MapPin,
-  Martini,
   Search,
-  ShoppingCart,
   Sparkles,
-  Warehouse,
-  Wine,
+  ShieldCheck,
+  Leaf,
+  BadgeCheck,
 } from 'lucide-react';
-import { useCart } from '../contexts/CartContext';
 import { fallbackProducts } from '../data/fallbackProducts';
-import { formatLabel, formatPrice, normalizeProductCatalog } from '../utils/productPresentation';
-
-const homeProducts = normalizeProductCatalog(fallbackProducts);
-
-const categoryTiles = [
-  { label: 'Gin', query: 'gin', icon: FlaskConical },
-  { label: 'Whiskey', query: 'whiskey', icon: Wine },
-  { label: 'Liqueurs', query: 'liqueur', icon: Martini },
-  { label: 'Wholesale', query: 'wholesale', icon: Warehouse },
-  { label: 'Bottles', query: 'bottle', icon: BottleWine },
-];
-
-const proofPoints = [
-  {
-    label: 'Wholesale & tasting',
-    text: 'Bookings are open now.',
-    icon: CalendarDays,
-  },
-  {
-    label: 'Premium quality',
-    text: 'Crafted with passion.',
-    icon: Award,
-  },
-  {
-    label: 'Ugandan heritage',
-    text: 'Proudly local. Globally inspired.',
-    icon: Leaf,
-  },
-];
 
 const Landing = () => {
-  const [collectionQuery, setCollectionQuery] = useState('');
-  const { addToCart } = useCart();
-  const navigate = useNavigate();
+  const [query, setQuery] = useState('');
 
-  const handleAddToCart = (product) => {
-    const result = addToCart(product);
+  const featured = useMemo(
+    () =>
+      fallbackProducts.map((product) => ({
+        id: product._id,
+        name: product.name,
+        category: product.category,
+        tastingNotes: product.tastingNotes || [],
+        image: product.images?.[0]?.url || '/images/home.png',
+      })),
+    []
+  );
 
-    if (!result?.success) {
-      window.alert(result?.message || 'Unable to add this bottle right now.');
+  const filteredFeatured = useMemo(() => {
+    const search = query.trim().toLowerCase();
+
+    if (!search) {
+      return featured;
     }
-  };
 
-  const handleCollectionSearch = (event) => {
-    event.preventDefault();
-    const query = collectionQuery.trim();
-    navigate(query ? `/products?search=${encodeURIComponent(query)}` : '/products');
-  };
+    return featured.filter((item) => {
+      const haystack = [item.name, item.category, ...item.tastingNotes].join(' ').toLowerCase();
+      return haystack.includes(search);
+    });
+  }, [featured, query]);
 
   return (
     <div className="home-market">
@@ -79,120 +50,75 @@ const Landing = () => {
           <span>Premium spirits made from the finest local ingredients. Bold taste, true heritage.</span>
           <div className="home-market__hero-actions">
             <Link to="/products">
-              Explore our bottles
+              EXPLORE OUR BOTTLES
               <ArrowRight size={18} strokeWidth={2.2} />
             </Link>
-            <Link to="/products">View collection</Link>
+            <Link to="/products">VIEW COLLECTION</Link>
           </div>
         </div>
       </section>
 
-      <section className="home-market__proof-strip" aria-label="Muwas service highlights">
-        {proofPoints.map((point) => {
-          const Icon = point.icon;
-
-          return (
-            <div key={point.label} className="home-market__proof-item">
-              <span>
-                <Icon size={25} strokeWidth={2} />
-              </span>
-              <div>
-                <strong>{point.label}</strong>
-                <small>{point.text}</small>
-              </div>
-            </div>
-          );
-        })}
+      <section className="home-ref-proof">
+        <article>
+          <span><BadgeCheck size={16} /></span>
+          <div>
+            <strong>WHOLESALE & TASTING</strong>
+            <small>Bookings are open now.</small>
+          </div>
+        </article>
+        <article>
+          <span><ShieldCheck size={16} /></span>
+          <div>
+            <strong>PREMIUM QUALITY</strong>
+            <small>Crafted with passion.</small>
+          </div>
+        </article>
+        <article>
+          <span><Leaf size={16} /></span>
+          <div>
+            <strong>UGANDAN HERITAGE</strong>
+            <small>Proudly local. Globally inspired.</small>
+          </div>
+        </article>
       </section>
 
-      <section className="home-market__layout home-market__layout--showcase">
-        <div className="home-market__main">
-          <div className="home-market__section-heading">
-            <div>
-              <span>
-                <Sparkles size={18} strokeWidth={2} />
-                Featured bottles
-              </span>
-              <p>from this week's shelf.</p>
-            </div>
-            <Link to="/products">
-              View all
-              <ArrowRight size={15} strokeWidth={2} />
-            </Link>
+      <section className="home-ref-lower">
+        <div className="home-ref-lower__left">
+          <div className="home-ref-lower__head">
+            <h2><Sparkles size={16} /> Featured bottles</h2>
+            <Link to="/products">VIEW ALL <ArrowRight size={14} /></Link>
           </div>
-
-          <div className="home-market__product-grid">
-            {homeProducts.map((product) => (
-              <article key={product._id} className="home-product-card">
-                <Link to={`/product/${product._id}`} className="home-product-card__media">
-                  <img src={product.images[0]?.url} alt={product.images[0]?.alt || product.name} />
-                </Link>
-
-                <div className="home-product-card__body">
-                  <span>{formatLabel(product.category)}</span>
-                  <h3>{product.name}</h3>
-                  <p>{formatPrice(product.price)}</p>
-                  <button type="button" onClick={() => handleAddToCart(product)}>
-                    <ShoppingCart size={16} strokeWidth={2.1} />
-                    Add to cart
-                  </button>
-                </div>
+          <p>from this week&apos;s shelf.</p>
+          <div className="home-ref-cards">
+            {filteredFeatured.map((item) => (
+              <article key={item.id}>
+                <img src={item.image} alt={item.name} />
               </article>
             ))}
           </div>
-
-          <Link to="/products" className="home-market__carousel-next" aria-label="Browse more featured bottles">
-            <ChevronRight size={24} strokeWidth={2.2} />
-          </Link>
+          {filteredFeatured.length === 0 && (
+            <p className="home-ref-empty">No bottles match your search yet.</p>
+          )}
         </div>
-
-        <aside className="home-market__side">
-          <div className="home-market__section-heading">
-            <div>
-              <span>
-                <Sparkles size={18} strokeWidth={2} />
-                Explore our collection
-              </span>
-            </div>
-          </div>
-
-          <form className="home-market__search" onSubmit={handleCollectionSearch}>
-            <Search size={19} strokeWidth={2} />
+        <div className="home-ref-lower__right">
+          <h2><Sparkles size={16} /> Explore our collection</h2>
+          <div className="home-ref-search">
+            <Search size={16} />
             <input
               type="search"
-              value={collectionQuery}
-              onChange={(event) => setCollectionQuery(event.target.value)}
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
               placeholder="Search products..."
               aria-label="Search products"
             />
-            <button type="submit">Search</button>
-          </form>
-
-          <div className="home-category-grid" aria-label="Shop categories">
-            {categoryTiles.map((category) => {
-              const Icon = category.icon;
-
-              return (
-                <Link key={category.label} to={`/products?search=${category.query}`} className="home-category-card">
-                  <span>
-                    <Icon size={28} strokeWidth={1.8} />
-                  </span>
-                  <strong>{category.label}</strong>
-                </Link>
-              );
-            })}
+            <button type="button" onClick={() => setQuery('')}>CLEAR</button>
           </div>
-
-          <Link to="/contact" className="home-market__location">
-            <MapPin size={33} strokeWidth={2.1} />
-            <div>
-              <strong>Location</strong>
-              <span>Masaka Road corridor, Uganda</span>
-            </div>
-            <span className="home-market__map-route" aria-hidden="true" />
-            <MapPin size={33} strokeWidth={2.1} />
-          </Link>
-        </aside>
+          <div className="home-ref-stats">
+            <div><strong>100% Local</strong><span>Sourced in Uganda</span></div>
+            <div><strong>Crafted with care</strong><span>Small batch distilled</span></div>
+            <div><strong>Secure payments</strong><span>Safe & trusted checkout</span></div>
+          </div>
+        </div>
       </section>
     </div>
   );

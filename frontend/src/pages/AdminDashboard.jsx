@@ -208,6 +208,7 @@ const AdminDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [orders, setOrders] = useState([]);
+  const [users, setUsers] = useState([]);
   const [products, setProducts] = useState([]);
   const [contacts, setContacts] = useState([]);
   const [notice, setNotice] = useState({ type: '', text: '' });
@@ -221,6 +222,7 @@ const AdminDashboard = () => {
   const [orderDeletingId, setOrderDeletingId] = useState('');
   const [contactSavingId, setContactSavingId] = useState('');
   const [contactDeletingId, setContactDeletingId] = useState('');
+  const [showNotifications, setShowNotifications] = useState(false);
   const productImageInputRef = useRef(null);
 
   const pushNotice = (text, type = 'info') => {
@@ -270,10 +272,11 @@ const AdminDashboard = () => {
     }
 
     try {
-      const [ordersResult, productsResult, contactsResult] = await Promise.allSettled([
+      const [ordersResult, productsResult, contactsResult, usersResult] = await Promise.allSettled([
         api.get('/orders?limit=200'),
         api.get('/products?limit=200'),
         api.get('/contact?limit=200'),
+        api.get('/auth/users?limit=200'),
       ]);
 
       const nextOrders =
@@ -288,15 +291,21 @@ const AdminDashboard = () => {
         contactsResult.status === 'fulfilled'
           ? contactsResult.value?.data?.contacts || []
           : [];
+      const nextUsers =
+        usersResult.status === 'fulfilled'
+          ? usersResult.value?.data?.users || []
+          : [];
 
       const failedSegments = [];
       if (ordersResult.status === 'rejected') failedSegments.push('orders');
       if (productsResult.status === 'rejected') failedSegments.push('products');
       if (contactsResult.status === 'rejected') failedSegments.push('contacts');
+      if (usersResult.status === 'rejected') failedSegments.push('users');
 
       setOrders(nextOrders);
       setProducts(nextProducts);
       setContacts(nextContacts);
+      setUsers(nextUsers);
       primeOrderDrafts(nextOrders);
       primeContactDrafts(nextContacts);
 
@@ -487,6 +496,16 @@ const AdminDashboard = () => {
   ]);
 
   const analyticsMaxValue = Math.max(...analyticsData.bars.map((bar) => bar.value), 1);
+  const paymentAlerts = useMemo(
+    () => orders.filter((order) => ['pending', 'failed', 'refunded'].includes(order.paymentStatus)),
+    [orders]
+  );
+  const newWholesaleAccounts = useMemo(
+    () => users.filter((account) => account.role === 'wholesale' && !account.isApproved),
+    [users]
+  );
+  const recentAccounts = useMemo(() => users.slice(0, 8), [users]);
+  const notificationCount = paymentAlerts.length + newWholesaleAccounts.length;
 
   const handleSectionChange = (sectionId) => {
     setActiveTab(sectionId);
@@ -847,8 +866,61 @@ const AdminDashboard = () => {
                 </>
               )}
             </button>
+            <button
+              type="button"
+              className="admin-hub__refresh"
+              onClick={() => setShowNotifications((current) => !current)}
+            >
+              <Bell size={16} />
+              Alerts {notificationCount > 0 ? `(${notificationCount})` : ''}
+            </button>
           </div>
         </section>
+
+        {showNotifications && (
+          <section className="admin-panel">
+            <div className="admin-panel__heading">
+              <h2>Notifications Center</h2>
+              <button type="button" onClick={() => setShowNotifications(false)}>Close</button>
+            </div>
+            <div className="admin-list">
+              <div className="admin-list__row">
+                <div>
+                  <strong>Wholesale approvals pending</strong>
+                  <small>{newWholesaleAccounts.length} account(s)</small>
+                </div>
+                <button type="button" onClick={() => handleSectionChange('overview')}>View</button>
+              </div>
+              {newWholesaleAccounts.slice(0, 5).map((account) => (
+                <div key={account._id} className="admin-list__row">
+                  <div>
+                    <strong>{account.name || account.email}</strong>
+                    <small>{account.email} • wholesale pending</small>
+                  </div>
+                  <span>{new Date(account.createdAt).toLocaleString()}</span>
+                </div>
+              ))}
+              {paymentAlerts.slice(0, 8).map((order) => (
+                <div key={order._id} className="admin-list__row">
+                  <div>
+                    <strong>{order.orderNumber || 'Order'}</strong>
+                    <small>Payment {order.paymentStatus} • {formatPrice(order.totalAmount || 0)}</small>
+                  </div>
+                  <button type="button" onClick={() => handleSectionChange('orders')}>Trace</button>
+                </div>
+              ))}
+              {recentAccounts.slice(0, 4).map((account) => (
+                <div key={`${account._id}-recent`} className="admin-list__row">
+                  <div>
+                    <strong>New account: {account.name || account.email}</strong>
+                    <small>{account.role} • {account.isApproved ? 'approved' : 'pending'}</small>
+                  </div>
+                  <span>{new Date(account.createdAt).toLocaleString()}</span>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
         {notice.text && (
           <div className={`admin-hub__notice is-${notice.type || 'info'}`}>

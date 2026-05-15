@@ -24,6 +24,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import ProtectedRoute from './components/ProtectedRoute';
 import { fetchWithApiFallback } from './utils/api';
 import './App.css';
+import './styles/redesign.css';
 
 function parseBooleanFlag(value, fallback = false) {
   if (typeof value === 'boolean') {
@@ -102,78 +103,84 @@ function App() {
     setTheme('light');
   };
 
+  const AppLayout = () => {
+    return (
+      <div className="muwas-app-root min-h-screen flex flex-col">
+        <Header siteProducts={siteProducts} theme={theme} onToggleTheme={toggleTheme} />
+        <main>
+          <Routes>
+            <Route path="/" element={<Landing />} />
+            <Route path="/story" element={<Story />} />
+            <Route path="/products" element={<Products />} />
+            <Route path="/product/:id" element={<ProductDetail />} />
+            <Route path="/cart" element={<Cart />} />
+            <Route
+              path="/checkout"
+              element={
+                <ProtectedRoute>
+                  <Checkout />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/order-success"
+              element={
+                <ProtectedRoute>
+                  <OrderSuccess />
+                </ProtectedRoute>
+              }
+            />
+            <Route path="/contact" element={<Contact />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute>
+                  <Profile />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/orders"
+              element={
+                <ProtectedRoute>
+                  <Orders />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/wholesale"
+              element={
+                <ProtectedRoute roles={['wholesale', 'admin']}>
+                  <Wholesale />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin"
+              element={
+                <ProtectedRoute roles={['admin']}>
+                  <AdminDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </main>
+        <SiteAssistant siteProducts={siteProducts} />
+        <Footer />
+        <MobileTabBar />
+        <ToastHost />
+      </div>
+    );
+  };
+
   return (
     <AuthProvider>
       <CartProvider>
         <Router>
-          <div className="muwas-app-root min-h-screen flex flex-col">
-            <Header siteProducts={siteProducts} theme={theme} onToggleTheme={toggleTheme} />
-            <main>
-              <Routes>
-                <Route path="/" element={<Landing />} />
-                <Route path="/story" element={<Story />} />
-                <Route path="/products" element={<Products />} />
-                <Route path="/product/:id" element={<ProductDetail />} />
-                <Route path="/cart" element={<Cart />} />
-                <Route
-                  path="/checkout"
-                  element={
-                    <ProtectedRoute>
-                      <Checkout />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/order-success"
-                  element={
-                    <ProtectedRoute>
-                      <OrderSuccess />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route path="/contact" element={<Contact />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/register" element={<Register />} />
-                <Route 
-                  path="/profile" 
-                  element={
-                    <ProtectedRoute>
-                      <Profile />
-                    </ProtectedRoute>
-                  } 
-                />
-                <Route 
-                  path="/orders" 
-                  element={
-                    <ProtectedRoute>
-                      <Orders />
-                    </ProtectedRoute>
-                  } 
-                />
-                <Route 
-                  path="/wholesale" 
-                  element={
-                    <ProtectedRoute roles={['wholesale', 'admin']}>
-                      <Wholesale />
-                    </ProtectedRoute>
-                  } 
-                />
-                <Route 
-                  path="/admin" 
-                  element={
-                    <ProtectedRoute roles={['admin']}>
-                      <AdminDashboard />
-                    </ProtectedRoute>
-                  } 
-                />
-                <Route path="*" element={<Navigate to="/" replace />} />
-              </Routes>
-            </main>
-            <SiteAssistant siteProducts={siteProducts} />
-            <Footer />
-            <MobileTabBar />
-            <ToastHost />
-          </div>
+          <AppLayout />
         </Router>
       </CartProvider>
     </AuthProvider>

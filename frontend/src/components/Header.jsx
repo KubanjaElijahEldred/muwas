@@ -3,11 +3,10 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   Camera,
   ChevronDown,
-  Menu,
   LogIn,
+  Search,
   ShoppingCart,
   User,
-  X,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useCart } from '../contexts/CartContext';
@@ -21,8 +20,8 @@ const navLinks = [
 ];
 
 const Header = () => {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [navSearch, setNavSearch] = useState('');
   const { user, logout, isAuthenticated } = useAuth();
   const { getCartCount } = useCart();
   const navigate = useNavigate();
@@ -30,15 +29,16 @@ const Header = () => {
 
   const isActive = (path) => location.pathname === path;
   const cartCount = getCartCount();
-  const wholesalePath =
-    isAuthenticated && (user?.role === 'wholesale' || user?.role === 'admin')
-      ? '/wholesale'
-      : '/login';
-
   const handleLogout = () => {
     logout();
     setIsDropdownOpen(false);
     navigate('/');
+  };
+
+  const handleNavSearchSubmit = (event) => {
+    event.preventDefault();
+    const query = navSearch.trim();
+    navigate(query ? `/products?search=${encodeURIComponent(query)}` : '/products');
   };
 
   return (
@@ -62,6 +62,18 @@ const Header = () => {
               </Link>
             ))}
           </nav>
+
+          <form className="muwas-header__search-form" onSubmit={handleNavSearchSubmit}>
+            <Search size={15} strokeWidth={2} />
+            <input
+              type="search"
+              value={navSearch}
+              onChange={(event) => setNavSearch(event.target.value)}
+              placeholder="Search products..."
+              aria-label="Search products"
+            />
+            <button type="submit">Search</button>
+          </form>
 
           <div className="muwas-header__actions">
             <Link to="/contact" className="muwas-header__circle-action" aria-label="Tasting bookings">
@@ -127,64 +139,8 @@ const Header = () => {
             )}
           </div>
 
-          <button
-            type="button"
-            className="muwas-header__menu-toggle"
-            onClick={() => setIsMenuOpen((open) => !open)}
-            aria-expanded={isMenuOpen}
-            aria-label="Toggle navigation"
-          >
-            {isMenuOpen ? <X size={22} strokeWidth={1.9} /> : <Menu size={22} strokeWidth={1.9} />}
-          </button>
         </div>
 
-        <div className="muwas-header__subbar">
-          <span className="muwas-header__subbar-note">
-            <span className="muwas-header__subbar-dot" aria-hidden="true" />
-            Wholesale and tasting bookings are open now.
-          </span>
-          <Link to={wholesalePath} className="muwas-header__subbar-button">
-            Wholesale Login
-          </Link>
-        </div>
-
-        {isMenuOpen && (
-          <div className="muwas-mobile-menu">
-            <nav className="muwas-mobile-menu__links" aria-label="Mobile">
-              {navLinks.map((link) => (
-                <Link
-                  key={link.path}
-                  to={link.path}
-                  onClick={() => setIsMenuOpen(false)}
-                  className={`muwas-mobile-menu__link ${isActive(link.path) ? 'is-active' : ''}`}
-                >
-                  {link.label}
-                </Link>
-              ))}
-              <Link to="/cart" onClick={() => setIsMenuOpen(false)} className="muwas-mobile-menu__link">
-                Cart {cartCount > 0 ? `(${cartCount})` : ''}
-              </Link>
-              <Link to={wholesalePath} onClick={() => setIsMenuOpen(false)} className="muwas-mobile-menu__link">
-                Wholesale Portal
-              </Link>
-              {isAuthenticated ? (
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  className="muwas-mobile-menu__link muwas-mobile-menu__button"
-                >
-                  Logout
-                </button>
-              ) : (
-                <>
-                  <Link to="/login" onClick={() => setIsMenuOpen(false)} className="muwas-mobile-menu__link">
-                    Sign in
-                  </Link>
-                </>
-              )}
-            </nav>
-          </div>
-        )}
       </div>
     </header>
   );

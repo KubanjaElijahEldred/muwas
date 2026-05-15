@@ -233,7 +233,7 @@ const Profile = () => {
   }
 
   return (
-    <div className="profile-page">
+    <div className="profile-page profile-page--unified">
       {/* Profile Header */}
       <div className="profile-header">
         <div className="profile-header__background"></div>
@@ -312,7 +312,7 @@ const Profile = () => {
       )}
 
       {/* Profile Content */}
-      <div className="profile-content">
+      <div className="profile-content profile-content--unified">
         <div className="profile-sidebar">
           <nav className="profile-nav">
             <button

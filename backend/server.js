@@ -1,5 +1,6 @@
 require('dotenv').config();
 const express = require('express');
+const http = require('http');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -160,7 +161,7 @@ app.use((err, req, res, next) => {
   res.status(500).json({ message: 'Something went wrong!' });
 });
 
-const PORT = process.env.PORT || 5000;
+const PORT = Number.parseInt(process.env.PORT || '5000', 10);
 const DB_RETRY_DELAY_MS = Number.parseInt(process.env.DB_RETRY_DELAY_MS || '3000', 10);
 const DB_MAX_RETRIES = Number.parseInt(process.env.DB_MAX_RETRIES || '10', 10);
 const DB_RECONNECT_INTERVAL_MS = Number.parseInt(
@@ -309,13 +310,38 @@ async function startServer() {
     startDatabaseReconnectLoop();
   }
 
-  app.listen(PORT, () => {
+  const startListening = (port) =>
+    new Promise((resolve, reject) => {
+      const server = http.createServer(app);
+
+      server.once('error', (error) => {
+        if (error && error.code === 'EADDRINUSE') {
+          console.warn(`Port ${port} is in use. Trying port ${port + 1}...`);
+          resolve(startListening(port + 1));
+          return;
+        }
+
+        reject(error);
+      });
+
+      server.once('listening', () => {
+        resolve({ server, port });
+      });
+
+      server.listen(port);
+    });
+
+  try {
+    const { port } = await startListening(PORT);
     console.log(
-      `Server running on port ${PORT}${
+      `Server running on port ${port}${
         databaseConnected ? '' : ' (fallback mode without database)'
       }`
     );
-  });
+  } catch (error) {
+    console.error('Server startup error:', error?.message || error);
+    process.exit(1);
+  }
 }
 
 if (require.main === module) {

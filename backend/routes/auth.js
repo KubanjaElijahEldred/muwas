@@ -552,6 +552,29 @@ router.get('/me', auth, async (req, res) => {
   res.json({ user: req.user });
 });
 
+router.get('/users', auth, async (req, res) => {
+  try {
+    if (req.user?.role !== 'admin') {
+      return res.status(403).json({ message: 'Access denied. Admin only.' });
+    }
+
+    const { limit = 100 } = req.query;
+    const parsedLimit = Math.max(1, Math.min(Number(limit) || 100, 500));
+    const users = await User.find({})
+      .select('name email role isApproved createdAt authProvider phone')
+      .sort({ createdAt: -1 })
+      .limit(parsedLimit);
+
+    return res.json({
+      users,
+      count: users.length,
+    });
+  } catch (error) {
+    console.error('Get users (admin) error:', error);
+    return res.status(500).json({ message: 'Server error fetching users' });
+  }
+});
+
 router.put('/profile', auth, upload.single('profileImage'), async (req, res) => {
   try {
     const { name, phone, address } = req.body;

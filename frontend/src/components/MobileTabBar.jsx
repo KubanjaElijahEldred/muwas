@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, LayoutDashboard, ShoppingBag, ShoppingCart, UserRound } from 'lucide-react';
+import { BookOpen, Home, LayoutDashboard, ShoppingBag, ShoppingCart, UserRound } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useCart } from '../contexts/CartContext';
 
@@ -19,6 +19,7 @@ const MobileTabBar = () => {
   const tabs = [
     { to: '/', label: 'Home', icon: Home },
     { to: '/products', label: 'Shop', icon: ShoppingBag },
+    { to: '/story', label: 'Story', icon: BookOpen },
     { to: '/cart', label: 'Cart', icon: ShoppingCart, count: cartCount },
     accountTab,
   ];
