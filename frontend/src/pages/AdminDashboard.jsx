@@ -15,6 +15,7 @@ import {
   Loader2,
   LogOut,
   Package,
+  PanelLeft,
   PhoneCall,
   Plus,
   RefreshCw,
@@ -223,6 +224,7 @@ const AdminDashboard = () => {
   const [contactSavingId, setContactSavingId] = useState('');
   const [contactDeletingId, setContactDeletingId] = useState('');
   const [showNotifications, setShowNotifications] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const productImageInputRef = useRef(null);
 
   const pushNotice = (text, type = 'info') => {
@@ -509,6 +511,7 @@ const AdminDashboard = () => {
 
   const handleSectionChange = (sectionId) => {
     setActiveTab(sectionId);
+    setMobileSidebarOpen(false);
   };
 
   const handleMetricSelect = (insightId) => {
@@ -775,7 +778,7 @@ const AdminDashboard = () => {
 
   return (
     <div className="admin-hub">
-      <div className="admin-shell">
+      <div className={`admin-shell ${mobileSidebarOpen ? 'is-mobile-sidebar-open' : ''}`}>
         <aside className="admin-sidebar" aria-label="Admin dashboard navigation">
           <div className="admin-sidebar__brand">
             <div className="admin-sidebar__mark" aria-hidden="true">
@@ -838,6 +841,15 @@ const AdminDashboard = () => {
           </div>
 
           <div className="admin-hub__toolbar">
+            <button
+              type="button"
+              className="admin-hub__sidebar-toggle"
+              onClick={() => setMobileSidebarOpen((current) => !current)}
+              aria-label={mobileSidebarOpen ? 'Close sidebar' : 'Open sidebar'}
+            >
+              {mobileSidebarOpen ? <X size={16} /> : <PanelLeft size={16} />}
+              {mobileSidebarOpen ? 'Close Menu' : 'Open Menu'}
+            </button>
             <label className="admin-hub__search">
               <Search size={17} strokeWidth={1.8} />
               <input
@@ -876,6 +888,14 @@ const AdminDashboard = () => {
             </button>
           </div>
         </section>
+        {mobileSidebarOpen && (
+          <button
+            type="button"
+            className="admin-sidebar__backdrop"
+            aria-label="Close sidebar overlay"
+            onClick={() => setMobileSidebarOpen(false)}
+          />
+        )}
 
         {showNotifications && (
           <section className="admin-panel">
