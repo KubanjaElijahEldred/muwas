@@ -30,7 +30,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { formatLabel, formatPrice } from '../utils/productPresentation';
-import brandLogo from '../assets/logo muwas.jpg';
+const brandLogo = '/images/logo-muwas.jpg';
 
 const orderStatusOptions = ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'];
 const paymentStatusOptions = ['pending', 'paid', 'failed', 'refunded'];

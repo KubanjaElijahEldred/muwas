@@ -5,32 +5,32 @@ import { ArrowRight, Mail, MapPin, Phone, QrCode } from 'lucide-react';
 const ingredients = [
   {
     title: 'JUNIPER BERRIES',
-    body: 'The classic gin backbone, delivering piney freshness and depth.',
+    body: 'The classic gin backbone, delivering piney freshness and depth. It anchors the spirit with crisp structure and a long, clean forest-like finish in every sip.',
     image: '/images/image10.png',
   },
   {
     title: 'ORANGE PEEL',
-    body: 'Adds bright citrus aroma and a warm, zesty character.',
+    body: 'Adds bright citrus aroma and a warm, zesty character. Sun-dried peel oils lift the nose and bring a lively, refreshing sparkle to the palate.',
     image: '/images/image11.png',
   },
   {
     title: 'CORIANDER',
-    body: 'Brings subtle spice and citrus notes that enhance complexity.',
+    body: 'Brings subtle spice and citrus notes that enhance complexity. Its gentle peppery warmth connects the florals and citrus into one balanced botanical profile.',
     image: '/images/image12.png',
   },
   {
     title: 'LEMONGRASS',
-    body: 'Fresh, aromatic and herbal, giving a clean citrus lift.',
+    body: 'Fresh, aromatic and herbal, giving a clean citrus lift. It contributes a soft green brightness that keeps the spirit vibrant and beautifully layered.',
     image: '/images/image13.png',
   },
   {
     title: 'ORRIS ROOT',
-    body: 'Provides smooth floral depth and a velvety botanical balance.',
+    body: 'Provides smooth floral depth and a velvety botanical balance. As a natural binder, it harmonizes each note for a rounded mouthfeel and elegant finish.',
     image: '/images/image14.png',
   },
   {
     title: 'A FEW OTHER BOTANICALS',
-    body: 'Carefully selected ingredients for balance, aroma and a signature finish.',
+    body: 'Carefully selected ingredients for balance, aroma and a signature finish. Together they build nuance, softness, and the distinct Muwas character that lingers.',
     image: '/images/image9.png',
   },
 ];
@@ -167,6 +167,18 @@ const Story = () => {
                 Every bottle begins from the land harvested by hand, distilled with patience, and
                 crafted to reflect Uganda&apos;s rich botanical heritage.
               </p>
+              <p>
+                What starts in our fields is carried forward by skilled hands, careful timing, and
+                a deep respect for local ingredients.
+              </p>
+              <p>
+                From first harvest to final seal, we focus on clarity, balance, and a flavor
+                profile that feels proudly Ugandan in every pour.
+              </p>
+              <p>
+                This is more than production. It is a living craft shaped by people, place, and a
+                commitment to quality that never cuts corners.
+              </p>
             </article>
             <figure className="story-journal__hero-image">
               <img src="/images/image1.png" alt="Farmer harvesting botanicals" />
@@ -184,6 +196,10 @@ const Story = () => {
                 From the volcanic soils of Uganda to every harvest by hand, our botanicals are grown
                 with care by local farmers who know the land best.
               </p>
+              <p>
+                This deep connection to place gives our spirits their authentic identity, rooted in
+                local knowledge, seasonality, and respect for nature.
+              </p>
             </article>
 
             <figure className="story-journal__image-card">
@@ -195,6 +211,10 @@ const Story = () => {
               <p>
                 Our small-batch distillation process honors traditional craftsmanship and modern
                 precision, capturing the pure soul of our ingredients in every drop.
+              </p>
+              <p>
+                Every run is monitored closely to preserve aroma, clarity, and consistency, ensuring
+                each bottle reflects the same quality from start to finish.
               </p>
             </article>
 
@@ -239,6 +259,33 @@ const Story = () => {
               Each botanical is carefully selected for its quality, character, and contribution to
               our unique flavors.
             </p>
+            <div className="story-journal__ingredients-story">
+              <p>
+                We begin with growers who understand every season, every soil shift, and every
+                harvest window. Their care at the source is what gives our spirits true clarity and
+                character.
+              </p>
+              <p>
+                From bright citrus lift to warm spice and floral depth, each ingredient is chosen to
+                play a precise role. Nothing is random, and nothing is rushed.
+              </p>
+              <p>
+                Together, these botanicals create a profile that is bold yet balanced, vibrant yet
+                smooth, and unmistakably rooted in Uganda.
+              </p>
+              <p>
+                We inspect, sort, and prepare each botanical in small quantities so freshness and
+                aroma are protected before distillation begins.
+              </p>
+              <p>
+                The result is a spirit with structure, elegance, and identity, crafted to be enjoyed
+                neat, on ice, or in cocktails that celebrate local flavor.
+              </p>
+              <p>
+                Every bottle carries the story of our farmers, our process, and our place. That is
+                why our ingredients are not just selected, they are respected.
+              </p>
+            </div>
           </div>
 
           <div className="story-journal__ingredient-grid" dir="rtl">

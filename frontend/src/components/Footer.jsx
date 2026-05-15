@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Clock3, Mail, MapPin, Phone, Sparkles } from 'lucide-react';
-import brandLogo from '../assets/logo muwas.jpg';
+const brandLogo = '/images/logo-muwas.jpg';
 
 const quickLinks = [
   { to: '/', label: 'Home' },
@@ -36,14 +36,14 @@ const Footer = () => {
               </span>
 
               <span className="muwas-footer__brand-copy">
-                <span className="muwas-footer__eyebrow">Masaka, Uganda</span>
+                <span className="muwas-footer__eyebrow">Nakasongola, Uganda</span>
                 <h2>Muwas Distilling</h2>
               </span>
             </Link>
 
             <p className="muwas-footer__summary">
-              Farm-led spirits, tasting experiences, and wholesale-ready bottling shaped around a
-              rich amber and charcoal identity from first click to final pour.
+              From our land to your glass, Muwas Distilling crafts small-batch spirits with
+              Ugandan botanicals, local expertise, and a commitment to authentic quality.
             </p>
 
             <div className="muwas-footer__tags" aria-label="Brand highlights">
@@ -112,25 +112,25 @@ const Footer = () => {
 
             <div className="muwas-footer__detail">
               <MapPin size={16} strokeWidth={1.8} />
-              <span>Muwas Farm, Masaka Road corridor, Uganda</span>
+              <span>Nantale Oasis breadfruit, Kaseesa Village, Kyabutaika Parish, Kakkooge Sub-county, Nakasongola District</span>
             </div>
 
-            <a href="tel:+256123456789" className="muwas-footer__detail muwas-footer__detail--link">
+            <a href="tel:+256772522646" className="muwas-footer__detail muwas-footer__detail--link">
               <Phone size={16} strokeWidth={1.8} />
-              <span>+256 123 456 789</span>
+              <span>+256772522646</span>
             </a>
 
             <a
-              href="mailto:info@muwasdistilling.ug"
+              href="mailto:muwasdistilling@gmail.com"
               className="muwas-footer__detail muwas-footer__detail--link"
             >
               <Mail size={16} strokeWidth={1.8} />
-              <span>info@muwasdistilling.ug</span>
+              <span>muwasdistilling@gmail.com</span>
             </a>
 
             <div className="muwas-footer__detail">
               <Clock3 size={16} strokeWidth={1.8} />
-              <span>Guided tastings and tours available on booking.</span>
+              <span>Open for tastings, tours, retail, and wholesale support by booking.</span>
             </div>
           </div>
         </div>

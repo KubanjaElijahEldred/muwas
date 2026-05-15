@@ -121,7 +121,9 @@ export const AuthProvider = ({ children }) => {
 
       return { success: true, user: userData };
     } catch (error) {
-      const message = error.response?.data?.message || 'Login failed';
+      const message = error.response?.data?.message
+        || (error.request ? 'Cannot reach server. Check that backend is running on port 5000.' : null)
+        || 'Login failed';
       return { success: false, message };
     }
   };
@@ -139,7 +141,10 @@ export const AuthProvider = ({ children }) => {
 
       return { success: true, user: newUser };
     } catch (error) {
-      const message = error.response?.data?.message || error.message || 'Registration failed';
+      const message = error.response?.data?.message
+        || (error.request ? 'Cannot reach server. Check that backend is running on port 5000.' : null)
+        || error.message
+        || 'Registration failed';
       return { success: false, message };
     }
   };

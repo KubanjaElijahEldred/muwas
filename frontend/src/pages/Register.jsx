@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { toAbsoluteApiUrl } from '../utils/api';
-import brandLogo from '../assets/logo muwas.jpg';
+const brandLogo = '/images/logo-muwas.jpg';
 
 const authFeatures = [
   { icon: Leaf, label: 'Leaf' },

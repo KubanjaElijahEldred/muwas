@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useCart } from '../contexts/CartContext';
-import brandLogo from '../assets/logo muwas.jpg';
+const brandLogo = '/images/logo-muwas.jpg';
 
 const navLinks = [
   { path: '/', label: 'Home' },

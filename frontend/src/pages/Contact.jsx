@@ -1,54 +1,60 @@
 import React, { useState } from 'react';
+import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import {
+  AtSign,
   Calendar,
-  Clock,
-  QrCode,
-  Headphones,
+  Globe,
   Mail,
   MapPin,
+  MessageCircle,
   Phone,
+  QrCode,
   Send,
-  Sparkles,
-  UsersRound,
 } from 'lucide-react';
 import { fetchWithApiFallback } from '../utils/api';
 
 const contactCards = [
   {
     icon: MapPin,
-    title: 'Visit us',
-    lines: ['Nantale Oasis breadfruit, Kaseesa Village, Kyabutaika Parish, Kakkooge Sub-county, Nakasongola District', 'Guided tastings by booking'],
+    title: 'Visit Us',
+    lines: [
+      'Nantale Oasis breadfruit, Kaseesa Village, Kyabutaika Parish, Kakkooge Sub-county, Nakasongola District',
+    ],
   },
   {
     icon: Phone,
-    title: 'Call support',
+    title: 'Call Support',
     lines: ['+256772522646', 'Call or WhatsApp any time'],
   },
   {
     icon: Mail,
-    title: 'Email team',
-    lines: ['muwasdistilling@gmail.com', 'For orders, tours, and support'],
+    title: 'Email Team',
+    lines: ['muwasdistilling@gmail.com', 'For tours, orders, and partnerships'],
   },
 ];
 
-const contactEditions = [
+const productCards = [
   {
-    eyebrow: '01',
-    title: 'Retail & Orders',
-    text: 'Bottle questions, order updates, and product support.',
+    type: 'VODKA',
+    title: 'Coffee Flavoured Vodka',
+    copy: 'Smooth. Rich. Distinctly Ugandan.',
+    image: '/images/vodka.png',
   },
   {
-    eyebrow: '02',
-    title: 'Tours & Tastings',
-    text: 'Farm visits, guided tastings, and private group bookings.',
-  },
-  {
-    eyebrow: '03',
-    title: 'Wholesale Desk',
-    text: 'Stock enquiries, retail partnerships, and trade setup.',
+    type: 'GIN',
+    title: 'Kakoge Gin',
+    copy: "A vibrant botanical gin inspired by Uganda's landscape.",
+    image: '/images/kakoge.png',
   },
 ];
+
+const fadeUp = {
+  initial: { opacity: 0, y: 20 },
+  whileInView: { opacity: 1, y: 0 },
+  viewport: { once: true, amount: 0.2 },
+  transition: { duration: 0.55, ease: 'easeOut' },
+};
 
 const Contact = () => {
   const [formData, setFormData] = useState({
@@ -57,14 +63,9 @@ const Contact = () => {
     phone: '',
     subject: '',
     message: '',
-    tourType: 'distillery',
-    tourDate: '',
-    tourTime: '',
-    numberOfGuests: 1,
   });
-  const [activeTab, setActiveTab] = useState('contact');
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState('');
+  const [submitMessage, setSubmitMessage] = useState('');
 
   const handleChange = (event) => {
     setFormData((current) => ({
@@ -73,423 +74,246 @@ const Contact = () => {
     }));
   };
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
+  const submitRequest = async (requestType = 'contact') => {
     setLoading(true);
-    setMessage('');
+    setSubmitMessage('');
 
     try {
       const response = await fetchWithApiFallback('/contact', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ...formData,
-          requestType: activeTab,
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...formData, requestType }),
       });
 
       if (!response.ok) {
         throw new Error('Request failed');
       }
 
-      setMessage(
-        activeTab === 'tour'
+      setSubmitMessage(
+        requestType === 'tour'
           ? 'Tour request received. The Muwas team will confirm your booking shortly.'
           : 'Message sent successfully. The Muwas team will get back to you soon.'
       );
+
       setFormData({
         name: '',
         email: '',
         phone: '',
         subject: '',
         message: '',
-        tourType: 'distillery',
-        tourDate: '',
-        tourTime: '',
-        numberOfGuests: 1,
       });
     } catch (error) {
-      setMessage('We could not send that request right now. Please try again in a moment.');
+      setSubmitMessage('We could not send that request right now. Please try again in a moment.');
     } finally {
       setLoading(false);
     }
   };
 
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    await submitRequest('contact');
+  };
+
   return (
-    <div className="contact-page">
-      <div className="contact-page__inner">
-        <section className="contact-hero">
-          <span className="contact-hero__curve contact-hero__curve--one" aria-hidden="true" />
-          <span className="contact-hero__curve contact-hero__curve--two" aria-hidden="true" />
-          <span className="contact-hero__curve contact-hero__curve--three" aria-hidden="true" />
-          <div className="contact-hero__copy">
-            <p className="contact-hero__eyebrow">Contact, Tours, Wholesale Support</p>
-            <h1>Plan a visit, ask about a bottle, or reach the Muwas team directly.</h1>
-            <span>
-              This page now matches the landing and shop experience with a warmer editorial layout
-              built for everyday enquiries and guided tasting bookings.
-            </span>
+    <div className="contact-luxe-page">
+      <section className="contact-luxe-hero">
+        <div className="contact-luxe-hero__backdrop" aria-hidden="true" />
+        <motion.div className="contact-luxe-hero__inner" {...fadeUp}>
+          <article className="contact-luxe-hero__copy">
+            <p>WE&apos;RE HERE TO HELP</p>
+            <h1>
+              Let&apos;s craft something <span>exceptional.</span>
+            </h1>
+            <small>
+              Whether you&apos;re planning a tasting, booking a tour, discussing wholesale
+              partnerships, or making a product enquiry, our team is ready to connect.
+            </small>
+          </article>
 
-            <div className="contact-hero__meta">
-              {contactCards.map(({ icon: Icon, title, lines }) => (
-                <article key={title} className="contact-hero__card">
-                  <span>
-                    <Icon size={18} strokeWidth={1.8} />
-                  </span>
-                  <div>
-                    <strong>{title}</strong>
-                    {lines.map((line) => (
-                      <small key={line}>{line}</small>
-                    ))}
-                  </div>
-                </article>
-              ))}
-            </div>
-          </div>
-
-          <div className="contact-hero__visual">
-            <Link to="/register" className="contact-hero__wholesale">WHOLESALE LOGIN</Link>
-            <img
-              src="/images/product.png"
-              alt="Muwas bottles and botanicals"
-              className="contact-hero__image"
-            />
-            <div className="contact-hero__note">
-              <Sparkles size={16} strokeWidth={1.8} />
-              <span>Guided tastings, farm tours, and hospitality support on request.</span>
-            </div>
-          </div>
-        </section>
-
-        <section className="contact-edition" aria-label="Contact options">
-          <div className="contact-edition__masthead">
-            <span>Muwas Dispatch</span>
-            <strong>Choose the right desk</strong>
-          </div>
-
-          <div className="contact-edition__grid">
-            {contactEditions.map((item) => (
-              <article key={item.title} className="contact-edition__card">
-                <span>{item.eyebrow}</span>
-                <h2>{item.title}</h2>
-                <p>{item.text}</p>
-              </article>
+          <div className="contact-luxe-hero__cards">
+            {contactCards.map(({ icon: Icon, title, lines }) => (
+              <motion.article
+                key={title}
+                className="contact-luxe-floating-card"
+                whileHover={{ y: -6, scale: 1.01 }}
+                transition={{ duration: 0.2 }}
+              >
+                <span>
+                  <Icon size={17} strokeWidth={1.9} />
+                </span>
+                <h3>{title}</h3>
+                {lines.map((line) => (
+                  <small key={line}>{line}</small>
+                ))}
+              </motion.article>
             ))}
           </div>
-        </section>
 
-        <section className="contact-layout">
-          <aside className="contact-sidebar">
-            <div className="contact-sidebar__panel">
-              <span className="contact-sidebar__badge">
-                <Headphones size={22} strokeWidth={1.9} />
-              </span>
-              <p>Visit & support</p>
-              <h2>What happens next</h2>
-              <ul>
-                <li>Retail enquiries are routed to product and order support.</li>
-                <li>Tour requests are reviewed against current booking availability.</li>
-                <li>Wholesale teams can ask about stock, fulfilment, and partnership setup.</li>
-              </ul>
+        </motion.div>
+      </section>
+
+      <section className="contact-luxe-body">
+        <motion.aside className="contact-luxe-panel" {...fadeUp}>
+          <p>MUWAS DISPATCH</p>
+          <h2>Choose the right desk</h2>
+          <ul>
+            <li>Retail enquiries and order support</li>
+            <li>Tours, tastings, and private bookings</li>
+            <li>Wholesale onboarding and stock setup</li>
+          </ul>
+        </motion.aside>
+
+        <motion.form className="contact-luxe-form" onSubmit={handleSubmit} {...fadeUp}>
+          {submitMessage && (
+            <div className="contact-luxe-form__message" role="status">
+              {submitMessage}
             </div>
-
-            <div className="contact-sidebar__panel">
-              <span className="contact-sidebar__badge">
-                <UsersRound size={22} strokeWidth={1.9} />
-              </span>
-              <p>Tour information</p>
-              <h2>Before you book</h2>
-              <ul>
-                <li>Tours last about 2 hours and can include guided tastings.</li>
-                <li>Group size is capped at 10 guests per booking request.</li>
-                <li>Visitors must be 18+ for tasting sessions.</li>
-              </ul>
-            </div>
-          </aside>
-
-          <div className="contact-panel">
-            <div className="contact-panel__tabs">
-              <button
-                type="button"
-                onClick={() => setActiveTab('contact')}
-                className={activeTab === 'contact' ? 'is-active' : ''}
-              >
-                Send message
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab('tour')}
-                className={activeTab === 'tour' ? 'is-active' : ''}
-              >
-                Book a tour
-              </button>
-            </div>
-
-            <div className="contact-panel__body">
-              {message && (
-                <div
-                  className={`contact-panel__message ${
-                    message.toLowerCase().includes('could not') ? 'is-error' : 'is-success'
-                  }`}
-                >
-                  {message}
-                </div>
-              )}
-
-              {activeTab === 'contact' ? (
-                <form onSubmit={handleSubmit} className="contact-form">
-                  <div className="contact-form__grid">
-                    <label className="contact-field">
-                      <span>Your name</span>
-                      <input
-                        type="text"
-                        name="name"
-                        value={formData.name}
-                        onChange={handleChange}
-                        required
-                        placeholder="John Doe"
-                      />
-                    </label>
-
-                    <label className="contact-field">
-                      <span>Email address</span>
-                      <input
-                        type="email"
-                        name="email"
-                        value={formData.email}
-                        onChange={handleChange}
-                        required
-                        placeholder="john@example.com"
-                      />
-                    </label>
-
-                    <label className="contact-field">
-                      <span>Phone number</span>
-                      <input
-                        type="tel"
-                        name="phone"
-                        value={formData.phone}
-                        onChange={handleChange}
-                        placeholder="+256 123 456 789"
-                      />
-                    </label>
-
-                    <label className="contact-field">
-                      <span>Subject</span>
-                      <input
-                        type="text"
-                        name="subject"
-                        value={formData.subject}
-                        onChange={handleChange}
-                        required
-                        placeholder="Product enquiry"
-                      />
-                    </label>
-                  </div>
-
-                  <label className="contact-field contact-field--full">
-                    <span>Message</span>
-                    <textarea
-                      name="message"
-                      value={formData.message}
-                      onChange={handleChange}
-                      required
-                      rows={6}
-                      placeholder="Tell us how we can help..."
-                    />
-                  </label>
-
-                  <button type="submit" disabled={loading} className="contact-submit">
-                    {loading ? (
-                      'Sending...'
-                    ) : (
-                      <>
-                        <Send size={17} strokeWidth={1.8} />
-                        Send Message
-                      </>
-                    )}
-                  </button>
-                </form>
-              ) : (
-                <form onSubmit={handleSubmit} className="contact-form">
-                  <div className="contact-form__grid">
-                    <label className="contact-field">
-                      <span>Your name</span>
-                      <input
-                        type="text"
-                        name="name"
-                        value={formData.name}
-                        onChange={handleChange}
-                        required
-                        placeholder="John Doe"
-                      />
-                    </label>
-
-                    <label className="contact-field">
-                      <span>Email address</span>
-                      <input
-                        type="email"
-                        name="email"
-                        value={formData.email}
-                        onChange={handleChange}
-                        required
-                        placeholder="john@example.com"
-                      />
-                    </label>
-
-                    <label className="contact-field">
-                      <span>Tour type</span>
-                      <select
-                        name="tourType"
-                        value={formData.tourType}
-                        onChange={handleChange}
-                        required
-                      >
-                        <option value="distillery">Distillery tour</option>
-                        <option value="tasting">Tasting session</option>
-                        <option value="farm">Farm visit</option>
-                        <option value="cocktail">Cocktail masterclass</option>
-                      </select>
-                    </label>
-
-                    <label className="contact-field">
-                      <span>Guests</span>
-                      <input
-                        type="number"
-                        name="numberOfGuests"
-                        value={formData.numberOfGuests}
-                        onChange={handleChange}
-                        required
-                        min="1"
-                        max="10"
-                      />
-                    </label>
-
-                    <label className="contact-field">
-                      <span>Preferred date</span>
-                      <div className="contact-field__with-icon">
-                        <Calendar size={16} strokeWidth={1.8} />
-                        <input
-                          type="date"
-                          name="tourDate"
-                          value={formData.tourDate}
-                          onChange={handleChange}
-                          required
-                          min={new Date().toISOString().split('T')[0]}
-                        />
-                      </div>
-                    </label>
-
-                    <label className="contact-field">
-                      <span>Preferred time</span>
-                      <div className="contact-field__with-icon">
-                        <Clock size={16} strokeWidth={1.8} />
-                        <select
-                          name="tourTime"
-                          value={formData.tourTime}
-                          onChange={handleChange}
-                          required
-                        >
-                          <option value="">Select time</option>
-                          <option value="09:00">9:00 AM</option>
-                          <option value="11:00">11:00 AM</option>
-                          <option value="14:00">2:00 PM</option>
-                          <option value="16:00">4:00 PM</option>
-                        </select>
-                      </div>
-                    </label>
-                  </div>
-
-                  <label className="contact-field contact-field--full">
-                    <span>Special requests</span>
-                    <textarea
-                      name="message"
-                      value={formData.message}
-                      onChange={handleChange}
-                      rows={5}
-                      placeholder="Any accessibility, group, or hospitality notes for the team..."
-                    />
-                  </label>
-
-                  <button type="submit" disabled={loading} className="contact-submit">
-                    {loading ? (
-                      'Sending...'
-                    ) : (
-                      <>
-                        <Calendar size={17} strokeWidth={1.8} />
-                        Book Tour
-                      </>
-                    )}
-                  </button>
-                </form>
-              )}
-            </div>
+          )}
+          <label>
+            <span>Name</span>
+            <input
+              type="text"
+              name="name"
+              value={formData.name}
+              onChange={handleChange}
+              required
+              placeholder="John Doe"
+            />
+          </label>
+          <label>
+            <span>Email</span>
+            <input
+              type="email"
+              name="email"
+              value={formData.email}
+              onChange={handleChange}
+              required
+              placeholder="john@example.com"
+            />
+          </label>
+          <label>
+            <span>Phone</span>
+            <input
+              type="tel"
+              name="phone"
+              value={formData.phone}
+              onChange={handleChange}
+              placeholder="+256 123 456 789"
+            />
+          </label>
+          <label>
+            <span>Subject</span>
+            <input
+              type="text"
+              name="subject"
+              value={formData.subject}
+              onChange={handleChange}
+              required
+              placeholder="How can we help?"
+            />
+          </label>
+          <label className="is-full">
+            <span>Message</span>
+            <textarea
+              name="message"
+              rows={6}
+              value={formData.message}
+              onChange={handleChange}
+              required
+              placeholder="Tell us more about your enquiry..."
+            />
+          </label>
+          <div className="contact-luxe-form__actions">
+            <motion.button
+              type="submit"
+              className="contact-luxe-btn contact-luxe-btn--primary"
+              whileHover={{ y: -2, scale: 1.01 }}
+              whileTap={{ scale: 0.99 }}
+              disabled={loading}
+            >
+              <Send size={16} />
+              {loading ? 'Sending...' : 'Send Message'}
+            </motion.button>
+            <motion.button
+              type="button"
+              className="contact-luxe-btn contact-luxe-btn--dark"
+              whileHover={{ y: -2, scale: 1.01 }}
+              whileTap={{ scale: 0.99 }}
+              onClick={() => submitRequest('tour')}
+              disabled={loading}
+            >
+              <Calendar size={16} />
+              Book a Tour
+            </motion.button>
           </div>
+        </motion.form>
 
-          <aside className="contact-product-rail">
-            <article className="contact-product-card">
-              <img src="/images/vodka.png" alt="Coffee Flavoured Vodka" />
+        <motion.aside className="contact-luxe-products" {...fadeUp}>
+          {productCards.map((item) => (
+            <article key={item.title} className="contact-luxe-product-card">
+              <img src={item.image} alt={item.title} />
               <div>
-                <span>VODKA</span>
-                <h3>Coffee Flavoured Vodka</h3>
-                <p>Smooth. Rich. Distinctly Ugandan.</p>
+                <span>{item.type}</span>
+                <h3>{item.title}</h3>
+                <p>{item.copy}</p>
+                <small>Coffee beans • Orange peel • Lemongrass • Coriander • Juniper</small>
               </div>
             </article>
-            <article className="contact-product-card">
-              <img src="/images/kakoge.png" alt="Kakoge Gin" />
-              <div>
-                <span>GIN</span>
-                <h3>Kakoge Gin</h3>
-                <p>A vibrant botanical gin inspired by Uganda&apos;s landscape.</p>
-              </div>
-            </article>
-          </aside>
-        </section>
+          ))}
+        </motion.aside>
+      </section>
 
-        <section className="contact-info-strip">
-          <article>
-            <MapPin size={24} />
-            <div>
-              <strong>OUR LOCATION</strong>
-              <span>Nantale Oasis breadfruit, Kaseesa Village, Kyabutaika Parish, Kakkooge Sub-county, Nakasongola District</span>
-            </div>
-          </article>
-          <article>
-            <Phone size={24} />
-            <div>
-              <strong>CALL / WHATSAPP</strong>
-              <span>+256772522646</span>
-            </div>
-          </article>
-          <article>
-            <Mail size={24} />
-            <div>
-              <strong>EMAIL US</strong>
-              <span>muwasdistilling@gmail.com</span>
-            </div>
-          </article>
-          <article>
-            <QrCode size={24} />
-            <div>
-              <strong>SCAN TO CONNECT</strong>
-              <span>Scan our code for any further information</span>
-            </div>
-          </article>
-        </section>
-
-        <section className="contact-cta-strip">
+      <section className="contact-luxe-strip">
+        <article>
+          <MapPin size={20} />
           <div>
-            <strong>LET&apos;S CREATE MEMORABLE EXPERIENCES</strong>
-            <span>From our land to your glass, we&apos;re honoured to be part of your journey.</span>
+            <strong>LOCATION</strong>
+            <span>Nantale Oasis breadfruit, Kaseesa Village, Kyabutaika Parish, Kakkooge</span>
           </div>
-          <Link to="/products">
-            EXPLORE OUR SPIRITS
-            <Send size={16} />
-          </Link>
-        </section>
-      </div>
+        </article>
+        <article>
+          <Phone size={20} />
+          <div>
+            <strong>WHATSAPP</strong>
+            <span>+256772522646</span>
+          </div>
+        </article>
+        <article>
+          <Mail size={20} />
+          <div>
+            <strong>EMAIL</strong>
+            <span>muwasdistilling@gmail.com</span>
+          </div>
+        </article>
+        <article>
+          <QrCode size={20} />
+          <div>
+            <strong>QR CONNECT</strong>
+            <span>Scan to connect with Muwas Distilling</span>
+          </div>
+        </article>
+      </section>
+
+      <section className="contact-luxe-final">
+        <div>
+          <strong>From our land to your glass.</strong>
+          <span>We&apos;re honoured to be part of your journey.</span>
+        </div>
+        <div className="contact-luxe-final__actions">
+          <Link to="/products">Explore Our Spirits</Link>
+          <div>
+            <a href="#" aria-label="Instagram">
+              <Globe size={16} />
+            </a>
+            <a href="#" aria-label="Facebook">
+              <MessageCircle size={16} />
+            </a>
+            <a href="#" aria-label="Youtube">
+              <AtSign size={16} />
+            </a>
+          </div>
+        </div>
+      </section>
     </div>
   );
 };
