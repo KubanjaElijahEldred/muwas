@@ -1,6 +1,3 @@
-const app = require('../../backend/server');
+const proxy = require('../_proxy');
 
-module.exports = (req, res) => {
-  req.url = '/api/auth/me';
-  return app(req, res);
-};
+module.exports = proxy('/api/auth/me');
