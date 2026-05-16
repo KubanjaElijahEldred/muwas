@@ -214,6 +214,18 @@ const buildSuperAdminUser = () => {
 
 router.post('/register', upload.single('profileImage'), async (req, res) => {
   try {
+    if (!isDatabaseReady()) {
+      return res.status(503).json({
+        message: 'Service temporarily unavailable. Database connection is not ready.',
+      });
+    }
+
+    if (!process.env.JWT_SECRET) {
+      return res.status(500).json({
+        message: 'Server auth configuration is incomplete (missing JWT secret).',
+      });
+    }
+
     const {
       name,
       email,
@@ -301,6 +313,12 @@ router.post('/register', upload.single('profileImage'), async (req, res) => {
 
 router.post('/login', async (req, res) => {
   try {
+    if (!process.env.JWT_SECRET) {
+      return res.status(500).json({
+        message: 'Server auth configuration is incomplete (missing JWT secret).',
+      });
+    }
+
     const { email, password, username } = req.body;
     const normalizedEmail = normalizeEmail(email);
     const normalizedUsername = normalizeUsername(username || password);
