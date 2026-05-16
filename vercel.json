@@ -5,13 +5,30 @@
   "functions": {
     "api/[...path].js": {
       "maxDuration": 30
+    },
+    "api/auth/login.js": {
+      "maxDuration": 30
+    },
+    "api/auth/register.js": {
+      "maxDuration": 30
+    },
+    "api/auth/me.js": {
+      "maxDuration": 30
+    },
+    "api/auth/users.js": {
+      "maxDuration": 30
+    },
+    "api/auth/profile.js": {
+      "maxDuration": 30
+    },
+    "api/auth/google/start.js": {
+      "maxDuration": 30
+    },
+    "api/auth/google/callback.js": {
+      "maxDuration": 30
     }
   },
   "rewrites": [
-    {
-      "source": "/api/(.*)",
-      "destination": "/api/$1"
-    },
     {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
