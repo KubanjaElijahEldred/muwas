@@ -8,6 +8,7 @@ import SiteAssistant from './components/SiteAssistant';
 import MobileTabBar from './components/MobileTabBar';
 import ToastHost from './components/ToastHost';
 import GlobalInfoStrips from './components/GlobalInfoStrips';
+import SplashScreen from './components/SplashScreen';
 import Landing from './pages/Landing';
 import Story from './pages/Story';
 import Products from './pages/Products';
@@ -56,10 +57,21 @@ function getInitialTheme() {
 function App() {
   const [siteProducts, setSiteProducts] = useState([]);
   const [theme, setTheme] = useState(getInitialTheme);
+  const [showSplash, setShowSplash] = useState(true);
   const shouldFetchSiteProducts = parseBooleanFlag(
     import.meta.env.VITE_FETCH_SITE_PRODUCTS,
     false
   );
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setShowSplash(false);
+    }, 2200);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, []);
 
   useEffect(() => {
     if (!shouldFetchSiteProducts) {
@@ -186,9 +198,13 @@ function App() {
   return (
     <AuthProvider>
       <CartProvider>
-        <Router>
-          <AppLayout />
-        </Router>
+        {showSplash ? (
+          <SplashScreen />
+        ) : (
+          <Router>
+            <AppLayout />
+          </Router>
+        )}
       </CartProvider>
     </AuthProvider>
   );
