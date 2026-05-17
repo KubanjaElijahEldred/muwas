@@ -41,7 +41,15 @@ const MobileTabBar = () => {
           className={`muwas-mobile-tabs__item ${isActive(tab.to) ? 'is-active' : ''}`}
         >
           <span className="muwas-mobile-tabs__icon">
-            {React.createElement(tab.icon, { size: 20, strokeWidth: 1.9 })}
+            {tab.to === accountTab.to && user?.profileImage ? (
+              <img
+                src={user.profileImage}
+                alt="Profile"
+                className="muwas-mobile-tabs__avatar"
+              />
+            ) : (
+              React.createElement(tab.icon, { size: 20, strokeWidth: 1.9 })
+            )}
             {tab.count > 0 && <strong>{tab.count}</strong>}
           </span>
           <span>{tab.label}</span>

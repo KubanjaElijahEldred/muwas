@@ -59,6 +59,37 @@ const normalizePhoneNumber = (countryCode, phoneNumber) => {
   return `${normalizedCountryCode}${normalizedLocalNumber}`;
 };
 
+const evaluatePasswordStrength = (password = '') => {
+  const value = String(password || '');
+  const checks = {
+    minLength: value.length >= 8,
+    hasUpper: /[A-Z]/.test(value),
+    hasLower: /[a-z]/.test(value),
+    hasNumber: /\d/.test(value),
+    hasSymbol: /[^A-Za-z0-9]/.test(value),
+  };
+
+  const passed = Object.values(checks).filter(Boolean).length;
+  let label = 'Weak';
+  let level = 'weak';
+
+  if (passed >= 5) {
+    label = 'Strong';
+    level = 'strong';
+  } else if (passed >= 3) {
+    label = 'Medium';
+    level = 'medium';
+  }
+
+  return {
+    ...checks,
+    passed,
+    label,
+    level,
+    isStrongEnough: checks.minLength && checks.hasUpper && checks.hasLower && checks.hasNumber,
+  };
+};
+
 const Register = () => {
   const navigate = useNavigate();
   const { register, user } = useAuth();
@@ -88,6 +119,10 @@ const Register = () => {
 
     return authUrl.toString();
   }, []);
+  const passwordStrength = useMemo(
+    () => evaluatePasswordStrength(formData.password),
+    [formData.password]
+  );
 
   const handleChange = (event) => {
     setFormData((current) => ({
@@ -147,6 +182,14 @@ const Register = () => {
 
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
+      setLoading(false);
+      return;
+    }
+
+    if (!passwordStrength.isStrongEnough) {
+      setError(
+        'Password is too weak. Use at least 8 characters with uppercase, lowercase, and a number.'
+      );
       setLoading(false);
       return;
     }
@@ -443,6 +486,16 @@ const Register = () => {
                     <Eye size={18} strokeWidth={1.8} />
                   )}
                 </button>
+              </div>
+              <div className={`auth-password-strength auth-password-strength--${passwordStrength.level}`}>
+                <strong>Strength: {passwordStrength.label}</strong>
+                <ul>
+                  <li className={passwordStrength.minLength ? 'is-pass' : ''}>At least 8 characters</li>
+                  <li className={passwordStrength.hasUpper ? 'is-pass' : ''}>One uppercase letter</li>
+                  <li className={passwordStrength.hasLower ? 'is-pass' : ''}>One lowercase letter</li>
+                  <li className={passwordStrength.hasNumber ? 'is-pass' : ''}>One number</li>
+                  <li className={passwordStrength.hasSymbol ? 'is-pass' : ''}>One symbol (recommended)</li>
+                </ul>
               </div>
             </label>
 

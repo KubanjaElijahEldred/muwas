@@ -12,6 +12,7 @@ const OrderSuccess = () => {
   const [comment, setComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [feedbackState, setFeedbackState] = useState({ type: '', message: '' });
+  const [showFeedbackModal, setShowFeedbackModal] = useState(true);
 
   if (!state?.order) {
     return <Navigate to="/orders" replace />;
@@ -43,6 +44,7 @@ const OrderSuccess = () => {
         source: 'order-success',
       });
       setFeedbackState({ type: 'success', message: 'Thanks. Your feedback has been sent to the Muwas admin team.' });
+      window.setTimeout(() => setShowFeedbackModal(false), 1000);
     } catch (error) {
       setFeedbackState({
         type: 'error',
@@ -55,6 +57,49 @@ const OrderSuccess = () => {
 
   return (
     <div className="order-success-page">
+      {showFeedbackModal && (
+        <div className="order-feedback-modal" role="dialog" aria-modal="true" aria-label="Rate your experience">
+          <div className="order-feedback-modal__panel">
+            <div className="order-feedback-panel">
+              <span>
+                <Heart size={25} fill="currentColor" strokeWidth={2} />
+              </span>
+              <h2>Rate Your Experience</h2>
+              <p>Please rate the system after payment.</p>
+              <form className="order-feedback-form" onSubmit={handleFeedbackSubmit}>
+                <div className="order-feedback-stars" role="radiogroup" aria-label="Rate your experience">
+                  {stars.map((value) => (
+                    <button
+                      key={value}
+                      type="button"
+                      className={value <= rating ? 'is-active' : ''}
+                      aria-label={`Rate ${value} star${value > 1 ? 's' : ''}`}
+                      onClick={() => setRating(value)}
+                    >
+                      <Star size={18} fill={value <= rating ? 'currentColor' : 'none'} />
+                    </button>
+                  ))}
+                </div>
+                <textarea
+                  value={comment}
+                  onChange={(event) => setComment(event.target.value)}
+                  placeholder="Tell us what went well and what we should improve."
+                  maxLength={1200}
+                />
+                <button type="submit" disabled={submitting}>
+                  {submitting ? 'Submitting...' : 'Submit Feedback'}
+                </button>
+                {feedbackState.message && (
+                  <small className={feedbackState.type === 'error' ? 'is-error' : 'is-success'}>
+                    {feedbackState.message}
+                  </small>
+                )}
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="order-success-page__inner">
         <section className="order-success-panel">
           <div className="order-success-confetti" aria-hidden="true">
@@ -163,42 +208,6 @@ const OrderSuccess = () => {
           </section>
         </aside>
 
-        <section className="order-feedback-panel">
-          <span>
-            <Heart size={25} fill="currentColor" strokeWidth={2} />
-          </span>
-          <h2>We&apos;d love your feedback!</h2>
-          <p>How was your shopping experience?</p>
-          <form className="order-feedback-form" onSubmit={handleFeedbackSubmit}>
-            <div className="order-feedback-stars" role="radiogroup" aria-label="Rate your experience">
-              {stars.map((value) => (
-                <button
-                  key={value}
-                  type="button"
-                  className={value <= rating ? 'is-active' : ''}
-                  aria-label={`Rate ${value} star${value > 1 ? 's' : ''}`}
-                  onClick={() => setRating(value)}
-                >
-                  <Star size={18} fill={value <= rating ? 'currentColor' : 'none'} />
-                </button>
-              ))}
-            </div>
-            <textarea
-              value={comment}
-              onChange={(event) => setComment(event.target.value)}
-              placeholder="Tell us what went well and what we should improve."
-              maxLength={1200}
-            />
-            <button type="submit" disabled={submitting}>
-              {submitting ? 'Submitting...' : 'Submit Feedback'}
-            </button>
-            {feedbackState.message && (
-              <small className={feedbackState.type === 'error' ? 'is-error' : 'is-success'}>
-                {feedbackState.message}
-              </small>
-            )}
-          </form>
-        </section>
       </div>
     </div>
   );

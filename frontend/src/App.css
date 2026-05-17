@@ -433,7 +433,7 @@ main {
   position: fixed;
   right: 22px;
   bottom: 22px;
-  z-index: 75;
+  z-index: 120;
   display: grid;
   justify-items: end;
   gap: 0.9rem;
@@ -5140,7 +5140,8 @@ html[data-theme='light'] .story-magazine__hero p:last-child {
 
   .muwas-assistant {
     right: 14px;
-    bottom: 14px;
+    bottom: calc(92px + env(safe-area-inset-bottom));
+    z-index: 140;
   }
 
   .muwas-assistant__panel {
@@ -8781,6 +8782,14 @@ main {
     justify-content: center;
   }
 
+  .muwas-mobile-tabs__avatar {
+    width: 22px;
+    height: 22px;
+    border-radius: 999px;
+    object-fit: cover;
+    border: 1px solid rgba(0, 0, 0, 0.18);
+  }
+
   .muwas-mobile-tabs__item.is-active {
     background: #ff6b00;
     color: #ffffff;
@@ -10893,6 +10902,64 @@ main {
 }
 
 .order-feedback-form small.is-success {
+  color: #0f766e;
+}
+
+.order-feedback-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1400;
+  background: rgba(12, 8, 6, 0.6);
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+}
+
+.order-feedback-modal__panel {
+  width: min(520px, 100%);
+}
+
+.auth-password-strength {
+  margin-top: 0.45rem;
+  border: 1px solid rgba(191, 146, 96, 0.22);
+  border-radius: 10px;
+  padding: 0.5rem 0.6rem;
+  background: rgba(255, 255, 255, 0.45);
+}
+
+.auth-password-strength strong {
+  display: block;
+  font-size: 0.78rem;
+  margin-bottom: 0.28rem;
+}
+
+.auth-password-strength ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.14rem;
+}
+
+.auth-password-strength li {
+  font-size: 0.72rem;
+  color: rgba(30, 24, 20, 0.75);
+}
+
+.auth-password-strength li.is-pass {
+  color: #0f766e;
+  font-weight: 600;
+}
+
+.auth-password-strength--weak strong {
+  color: #b42318;
+}
+
+.auth-password-strength--medium strong {
+  color: #b45309;
+}
+
+.auth-password-strength--strong strong {
   color: #0f766e;
 }
 
