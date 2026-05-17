@@ -47,13 +47,18 @@ const Orders = () => {
     try {
       const response = await api.get('/orders/my-orders');
       setOrders(response.data.orders || []);
+      setError('');
     } catch (error) {
+      const serverMessage = error.response?.data?.message;
+
       if (error.response?.status === 401) {
         setError('Please log in to view your orders');
+      } else if (error.response?.status === 503) {
+        setError(serverMessage || 'Orders are temporarily unavailable while the database reconnects.');
       } else if (error.response?.status === 500) {
-        setError('Server error. Please try again later.');
+        setError(serverMessage || 'Server error loading orders. Please try again shortly.');
       } else {
-        setError('Failed to fetch orders');
+        setError(serverMessage || 'Failed to fetch orders');
       }
       console.error('Error fetching orders:', error.response?.data || error.message);
       setOrders([]); // Clear orders on error
@@ -237,9 +242,30 @@ const Orders = () => {
   }
 
   return (
-    <div className="products-page">
+    <div className="products-page orders-page">
       <div className="products-page__inner">
-        {/* Skip the hero section - start directly with toolbar */}
+        <section className="orders-hero">
+          <div>
+            <p className="products-section__eyebrow">My Orders</p>
+            <h1>Track every bottle from checkout to delivery.</h1>
+            <span>Fast status updates, payment visibility, and order details in one place.</span>
+          </div>
+          <div className="orders-hero__stats">
+            <article>
+              <strong>{orders.length}</strong>
+              <span>Total Orders</span>
+            </article>
+            <article>
+              <strong>{orders.filter((o) => o.status === 'delivered').length}</strong>
+              <span>Delivered</span>
+            </article>
+            <article>
+              <strong>{orders.filter((o) => o.status === 'pending').length}</strong>
+              <span>Pending</span>
+            </article>
+          </div>
+        </section>
+
         <div className="products-toolbar">
           <label className="products-toolbar__search">
             <Search size={18} strokeWidth={1.9} />
@@ -289,27 +315,6 @@ const Orders = () => {
           ))}
         </div>
 
-        <div className="products-market-strip" aria-label="Order summary">
-          <div className="products-market-strip__card">
-            <strong>{orders.length}</strong>
-            <span>Total orders placed</span>
-          </div>
-          <div className="products-market-strip__card">
-            <strong>{orders.filter(o => o.status === 'delivered').length}</strong>
-            <span>Successfully delivered</span>
-          </div>
-          <div className="products-market-strip__card">
-            <strong>{orders.filter(o => o.status === 'pending').length}</strong>
-            <span>Awaiting confirmation</span>
-          </div>
-        </div>
-
-        {error && (
-          <div className="products-notice is-error">
-            {error}
-          </div>
-        )}
-
         {location.state?.message && (
           <div className="products-notice is-success">
             {location.state.message}
@@ -333,7 +338,11 @@ const Orders = () => {
             <div className="products-empty">
               <Package size={42} strokeWidth={1.7} />
               <h3>No orders found</h3>
-              <p>You haven't placed any orders yet. Start shopping to see your orders here.</p>
+              <p>
+                {error
+                  ? 'Orders are temporarily unavailable. Please check back shortly.'
+                  : "You haven't placed any orders yet. Start shopping to see your orders here."}
+              </p>
               <Link to="/products" className="products-showcase__cta products-showcase__cta--primary">
                 <ShoppingCart size={16} strokeWidth={1.9} />
                 Start Shopping
@@ -356,23 +365,20 @@ const Orders = () => {
               </div>
 
               {hasResults ? (
-                <div className="products-grid">
+                <div className="products-grid orders-grid">
                   {activeOrders.map((order) => {
                     const StatusIcon = getStatusIcon(order.status);
                     
                     return (
-                      <article
-                        key={order._id}
-                        className={`products-card products-card--${order.status === 'delivered' ? 'green' : order.status === 'cancelled' ? 'red' : 'default'}`}
-                      >
-                        <div className="products-card__media">
-                          <span className="products-card__badge">{formatLabel(order.status)}</span>
+                      <article key={order._id} className="orders-card">
+                        <div className="orders-card__media">
+                          <span className={`orders-card__badge is-${order.status}`}>{formatLabel(order.status)}</span>
                           <div className="products-card__order-icon">
                             <StatusIcon size={48} strokeWidth={1.8} />
                           </div>
                         </div>
 
-                        <div className="products-card__body">
+                        <div className="products-card__body orders-card__body">
                           <div className="products-card__header">
                             <span className="products-card__category">
                               {formatLabel(order.status)}
@@ -396,7 +402,9 @@ const Orders = () => {
                                 />
                               ))}
                             </div>
-                            <span>{formatLabel(order.paymentStatus)}</span>
+                            <span className={getPaymentStatusColor(order.paymentStatus)}>
+                              {formatLabel(order.paymentStatus)}
+                            </span>
                           </div>
 
                           <div className="products-card__facts">
@@ -421,18 +429,6 @@ const Orders = () => {
                             </div>
 
                             <div className="products-card__actions">
-                              <button
-                                type="button"
-                                className="products-card__button"
-                                onClick={() => {
-                                  // View order details
-                                  console.log('View order details:', order._id);
-                                }}
-                              >
-                                <Package size={16} strokeWidth={1.9} />
-                                View Details
-                              </button>
-                              
                               {order.status !== 'delivered' && order.status !== 'cancelled' && (
                                 <button
                                   type="button"

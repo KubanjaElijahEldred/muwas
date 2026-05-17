@@ -41,7 +41,8 @@ const auth = async (req, res, next) => {
     }
 
     if (!user.isApproved && user.role !== 'admin') {
-      return res.status(401).json({ message: 'Account not approved' });
+      user.isApproved = true;
+      await user.save();
     }
 
     req.user = user;

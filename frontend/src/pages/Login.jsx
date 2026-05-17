@@ -229,7 +229,7 @@ const Login = () => {
               New here? <Link to="/register">Create an account</Link>
             </p>
             <p className="auth-form__footer auth-form__footer--muted">
-              Need wholesale access? <Link to="/register">Register for approval</Link>
+              Need wholesale access? <Link to="/register">Register for wholesale</Link>
             </p>
           </form>
         </section>

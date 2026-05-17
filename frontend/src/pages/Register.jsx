@@ -61,7 +61,7 @@ const normalizePhoneNumber = (countryCode, phoneNumber) => {
 
 const Register = () => {
   const navigate = useNavigate();
-  const { register } = useAuth();
+  const { register, user } = useAuth();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -175,7 +175,17 @@ const Register = () => {
     const result = await register(submitData);
 
     if (result.success) {
-      navigate('/');
+      if (result.user?.role === 'admin') {
+        navigate('/admin', { replace: true });
+        return;
+      }
+
+      if (result.user?.role === 'wholesale') {
+        navigate('/wholesale', { replace: true });
+        return;
+      }
+
+      navigate('/', { replace: true });
       return;
     }
 
@@ -186,6 +196,24 @@ const Register = () => {
   const handleGoogleContinue = () => {
     window.location.assign(googleAuthUrl);
   };
+
+  React.useEffect(() => {
+    if (!user) {
+      return;
+    }
+
+    if (user.role === 'admin') {
+      navigate('/admin', { replace: true });
+      return;
+    }
+
+    if (user.role === 'wholesale') {
+      navigate('/wholesale', { replace: true });
+      return;
+    }
+
+    navigate('/', { replace: true });
+  }, [navigate, user]);
 
   return (
     <div className="auth-page auth-page--register">
@@ -355,7 +383,7 @@ const Register = () => {
               <div className="auth-field__control auth-field__control--select">
                 <select id="role" name="role" value={formData.role} onChange={handleChange}>
                   <option value="customer">Customer</option>
-                  <option value="wholesale">Wholesale (approval required)</option>
+                  <option value="wholesale">Wholesale</option>
                 </select>
               </div>
             </label>

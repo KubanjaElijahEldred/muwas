@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useCart } from '../contexts/CartContext';
+import { showSuccessToast } from '../utils/toast';
 const brandLogo = '/images/logo-muwas.jpg';
 
 const navLinks = [
@@ -26,6 +27,12 @@ const Header = () => {
   const { user, logout, isAuthenticated, api } = useAuth();
   const [notifications, setNotifications] = useState([]);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const unreadCountRef = React.useRef(0);
+  const hasLoadedNotificationsRef = React.useRef(false);
+  const notificationsEnabledRef = React.useRef(true);
+  const notificationsRequestInFlightRef = React.useRef(false);
   const { getCartCount } = useCart();
   const navigate = useNavigate();
   const location = useLocation();
@@ -45,32 +52,73 @@ const Header = () => {
   };
 
   const fetchNotifications = async () => {
-    if (!isAuthenticated) {
+    if (!isAuthenticated || !notificationsEnabledRef.current || notificationsRequestInFlightRef.current) {
       return;
     }
+
+    notificationsRequestInFlightRef.current = true;
 
     try {
       setNotificationsLoading(true);
       const response = await api.get('/notifications?limit=10');
-      setNotifications(Array.isArray(response.data?.notifications) ? response.data.notifications : []);
-    } catch {
+      const nextNotifications = Array.isArray(response.data?.notifications) ? response.data.notifications : [];
+      const nextUnreadCount = Number(response.data?.unreadCount);
+      const previousUnread = unreadCountRef.current;
+      const nextUnread = Number.isFinite(nextUnreadCount)
+        ? Math.max(0, nextUnreadCount)
+        : nextNotifications.filter((entry) => !entry.isRead).length;
+
+      if (hasLoadedNotificationsRef.current && nextUnread > previousUnread) {
+        showSuccessToast('You have new notifications');
+      }
+
+      unreadCountRef.current = nextUnread;
+      hasLoadedNotificationsRef.current = true;
+      setNotifications(nextNotifications);
+      setUnreadCount(nextUnread);
+    } catch (error) {
+      if (error?.response?.status === 404) {
+        notificationsEnabledRef.current = false;
+        setNotificationsEnabled(false);
+      }
       setNotifications([]);
+      setUnreadCount(0);
     } finally {
+      notificationsRequestInFlightRef.current = false;
       setNotificationsLoading(false);
     }
   };
 
   React.useEffect(() => {
-    fetchNotifications();
-  }, [isAuthenticated]);
+    notificationsEnabledRef.current = notificationsEnabled;
+  }, [notificationsEnabled]);
 
-  const unreadCount = notifications.filter((entry) => !entry.isRead).length;
+  React.useEffect(() => {
+    if (!notificationsEnabled) {
+      return;
+    }
+    fetchNotifications();
+  }, [isAuthenticated, notificationsEnabled]);
+
+  React.useEffect(() => {
+    if (!isAuthenticated || !notificationsEnabled) {
+      return undefined;
+    }
+
+    const refreshTimer = window.setInterval(() => {
+      fetchNotifications();
+    }, 20000);
+
+    return () => {
+      window.clearInterval(refreshTimer);
+    };
+  }, [isAuthenticated, notificationsEnabled]);
 
   const handleOpenNotifications = async () => {
     const nextOpen = !isNotificationsOpen;
     setIsNotificationsOpen(nextOpen);
 
-    if (nextOpen) {
+    if (nextOpen && notificationsEnabledRef.current) {
       await fetchNotifications();
     }
   };
@@ -83,6 +131,8 @@ const Header = () => {
           entry._id === notificationId ? { ...entry, isRead: true } : entry
         )
       );
+      setUnreadCount((current) => Math.max(0, current - 1));
+      unreadCountRef.current = Math.max(0, unreadCountRef.current - 1);
     } catch {
       // Ignore silent failure and keep current state.
     }
@@ -92,6 +142,8 @@ const Header = () => {
     try {
       await api.patch('/notifications/read-all');
       setNotifications((current) => current.map((entry) => ({ ...entry, isRead: true })));
+      setUnreadCount(0);
+      unreadCountRef.current = 0;
     } catch {
       // Ignore silent failure and keep current state.
     }
@@ -151,7 +203,7 @@ const Header = () => {
                     {unreadCount > 0 && <em className="muwas-notifications__count">{unreadCount}</em>}
                   </button>
 
-                  {isNotificationsOpen && (
+                  {isNotificationsOpen && notificationsEnabled && (
                     <div className="muwas-notifications__menu">
                       <div className="muwas-notifications__header">
                         <strong>Notifications</strong>
@@ -161,6 +213,8 @@ const Header = () => {
                       </div>
                       {notificationsLoading ? (
                         <p className="muwas-notifications__empty">Loading...</p>
+                      ) : !notificationsEnabled ? (
+                        <p className="muwas-notifications__empty">Notifications are not enabled yet.</p>
                       ) : notifications.length === 0 ? (
                         <p className="muwas-notifications__empty">No notifications yet.</p>
                       ) : (

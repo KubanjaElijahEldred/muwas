@@ -32,6 +32,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { formatLabel, formatPrice } from '../utils/productPresentation';
+import { showSuccessToast, showToast } from '../utils/toast';
 const brandLogo = '/images/logo-muwas.jpg';
 
 const orderStatusOptions = ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'];
@@ -221,12 +222,24 @@ const AdminDashboard = () => {
   const [productForm, setProductForm] = useState(createEmptyProductForm());
   const [orderDrafts, setOrderDrafts] = useState({});
   const [contactDrafts, setContactDrafts] = useState({});
+  const [userDrafts, setUserDrafts] = useState({});
   const [productSubmitting, setProductSubmitting] = useState(false);
   const [productDeletingId, setProductDeletingId] = useState('');
   const [orderSavingId, setOrderSavingId] = useState('');
   const [orderDeletingId, setOrderDeletingId] = useState('');
   const [contactSavingId, setContactSavingId] = useState('');
   const [contactDeletingId, setContactDeletingId] = useState('');
+  const [userSavingId, setUserSavingId] = useState('');
+  const [userDeletingId, setUserDeletingId] = useState('');
+  const [creatingUser, setCreatingUser] = useState(false);
+  const [newUserForm, setNewUserForm] = useState({
+    name: '',
+    email: '',
+    password: '',
+    phone: '',
+    role: 'customer',
+    isApproved: true,
+  });
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [broadcastForm, setBroadcastForm] = useState({ title: '', message: '', type: 'info' });
   const [broadcastSending, setBroadcastSending] = useState(false);
@@ -234,6 +247,7 @@ const AdminDashboard = () => {
   const [adminProfilePreview, setAdminProfilePreview] = useState(user?.profileImage || '');
   const productImageInputRef = useRef(null);
   const adminProfileInputRef = useRef(null);
+  const reminderBaselineRef = useRef(null);
 
   const pushNotice = (text, type = 'info') => {
     if (!text) {
@@ -241,10 +255,13 @@ const AdminDashboard = () => {
       return;
     }
 
+    const normalizedType = getNoticeType(type);
     setNotice({
-      type: getNoticeType(type),
+      type: normalizedType,
       text,
     });
+
+    showToast(text, normalizedType);
   };
 
   const primeOrderDrafts = (nextOrders = []) => {
@@ -272,6 +289,21 @@ const AdminDashboard = () => {
     });
 
     setContactDrafts(nextDrafts);
+  };
+
+  const primeUserDrafts = (nextUsers = []) => {
+    const nextDrafts = {};
+
+    nextUsers.forEach((account) => {
+      nextDrafts[account._id] = {
+        name: account.name || '',
+        phone: account.phone || '',
+        role: account.role || 'customer',
+        isApproved: Boolean(account.isApproved),
+      };
+    });
+
+    setUserDrafts(nextDrafts);
   };
 
   const fetchDashboardData = async ({ initial = false, silent = false } = {}) => {
@@ -318,6 +350,7 @@ const AdminDashboard = () => {
       setUsers(nextUsers);
       primeOrderDrafts(nextOrders);
       primeContactDrafts(nextContacts);
+      primeUserDrafts(nextUsers);
 
       if (!silent) {
         if (failedSegments.length > 0) {
@@ -515,10 +548,100 @@ const AdminDashboard = () => {
       }),
     [orders]
   );
+  const pendingPaymentsCount = useMemo(
+    () => orders.filter((order) => ['pending', 'failed', 'refunded'].includes(order.paymentStatus)).length,
+    [orders]
+  );
+  const pendingApprovalsCount = useMemo(
+    () => users.filter((account) => account.role === 'wholesale' && !account.isApproved).length,
+    [users]
+  );
+  const overviewBars = useMemo(() => {
+    const bars = [
+      { label: 'Orders', value: orders.length },
+      { label: 'Paid Orders', value: orders.filter((order) => order.paymentStatus === 'paid').length },
+      { label: 'Pending Payments', value: pendingPaymentsCount },
+      { label: 'Users', value: users.length },
+      { label: 'Products', value: products.length },
+      { label: 'Open Requests', value: unresolvedContactsCount },
+    ];
+    const max = Math.max(...bars.map((bar) => bar.value), 1);
+    return { bars, max };
+  }, [orders, pendingPaymentsCount, users, products, unresolvedContactsCount]);
+  const profitInsights = useMemo(() => {
+    const paidOrders = orders.filter((order) => order.paymentStatus === 'paid');
+    const paidRevenue = paidOrders.reduce(
+      (sum, order) => sum + Number(order.totalAmount || 0),
+      0
+    );
+    const estimatedCostOfGoods = paidRevenue * 0.58;
+    const estimatedOpsCost = paidRevenue * 0.17;
+    const totalCost = estimatedCostOfGoods + estimatedOpsCost;
+    const netProfit = Math.max(0, paidRevenue - totalCost);
+    const netLoss = Math.max(0, totalCost - paidRevenue);
+
+    const monthMap = new Map();
+    paidOrders.forEach((order) => {
+      const date = new Date(order.createdAt || Date.now());
+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      monthMap.set(monthKey, (monthMap.get(monthKey) || 0) + Number(order.totalAmount || 0));
+    });
+
+    const monthlyRevenueSeries = Array.from(monthMap.entries())
+      .sort(([a], [b]) => (a < b ? -1 : 1))
+      .slice(-6)
+      .map(([month, value]) => ({ month, value }));
+
+    const averageMonthlyRevenue =
+      monthlyRevenueSeries.length > 0
+        ? monthlyRevenueSeries.reduce((sum, item) => sum + item.value, 0) / monthlyRevenueSeries.length
+        : 0;
+    const projectedNextMonthRevenue = averageMonthlyRevenue * 1.08;
+    const maxMonthlyRevenue = Math.max(...monthlyRevenueSeries.map((entry) => entry.value), 1);
+
+    return {
+      paidRevenue,
+      estimatedCostOfGoods,
+      estimatedOpsCost,
+      totalCost,
+      netProfit,
+      netLoss,
+      projectedNextMonthRevenue,
+      monthlyRevenueSeries,
+      maxMonthlyRevenue,
+    };
+  }, [orders]);
 
   useEffect(() => {
     setAdminProfilePreview(user?.profileImage || '');
   }, [user?.profileImage]);
+
+  useEffect(() => {
+    const nextSnapshot = {
+      pendingOrders: pendingOrdersCount,
+      pendingPayments: pendingPaymentsCount,
+      pendingApprovals: pendingApprovalsCount,
+    };
+
+    const previousSnapshot = reminderBaselineRef.current;
+    reminderBaselineRef.current = nextSnapshot;
+
+    if (!previousSnapshot) {
+      return;
+    }
+
+    if (nextSnapshot.pendingOrders > previousSnapshot.pendingOrders) {
+      showSuccessToast('New order reminder');
+    }
+
+    if (nextSnapshot.pendingPayments > previousSnapshot.pendingPayments) {
+      showSuccessToast('New payment reminder');
+    }
+
+    if (nextSnapshot.pendingApprovals > previousSnapshot.pendingApprovals) {
+      showSuccessToast('New account approval reminder');
+    }
+  }, [pendingOrdersCount, pendingPaymentsCount, pendingApprovalsCount]);
 
   const handleSectionChange = (sectionId) => {
     setActiveTab(sectionId);
@@ -533,6 +656,163 @@ const AdminDashboard = () => {
   const handleLogout = () => {
     logout();
     navigate('/');
+  };
+
+  const handlePrintAllData = () => {
+    const printWindow = window.open('', '_blank', 'width=1200,height=900');
+    if (!printWindow) {
+      pushNotice('Unable to open print window. Please allow popups.', 'warning');
+      return;
+    }
+
+    const renderRows = (items, mapper) => items.map(mapper).join('');
+    const ordersRows = renderRows(
+      orders,
+      (order) => `<tr>
+        <td>${order.orderNumber || 'Order'}</td>
+        <td>${order.userId?.name || order.userId?.email || 'Unknown'}</td>
+        <td>${formatLabel(order.status || 'pending')}</td>
+        <td>${formatLabel(order.paymentStatus || 'pending')}</td>
+        <td>${formatPrice(order.totalAmount || 0)}</td>
+        <td>${new Date(order.createdAt).toLocaleString()}</td>
+      </tr>`
+    );
+    const paymentsRows = renderRows(
+      orders,
+      (order) => `<tr>
+        <td>${order.orderNumber || 'Order'}</td>
+        <td>${formatLabel(order.paymentMethod || 'unknown')}</td>
+        <td>${formatLabel(order.paymentStatus || 'pending')}</td>
+        <td>${formatPrice(order.totalAmount || 0)}</td>
+        <td>${new Date(order.createdAt).toLocaleString()}</td>
+      </tr>`
+    );
+    const usersRows = renderRows(
+      users,
+      (account) => `<tr>
+        <td>${account.name || '-'}</td>
+        <td>${account.email || ''}</td>
+        <td>${formatLabel(account.role || 'customer')}</td>
+        <td>${account.isApproved ? 'Approved' : 'Pending'}</td>
+        <td>${new Date(account.createdAt).toLocaleString()}</td>
+      </tr>`
+    );
+    const productsRows = renderRows(
+      products,
+      (product) => `<tr>
+        <td>${product.name || '-'}</td>
+        <td>${formatLabel(product.category || 'other')}</td>
+        <td>${formatPrice(product.price || 0)}</td>
+        <td>${Number(product.stock || 0)}</td>
+      </tr>`
+    );
+    const contactsRows = renderRows(
+      contacts,
+      (contact) => `<tr>
+        <td>${contact.name || '-'}</td>
+        <td>${contact.email || ''}</td>
+        <td>${formatLabel(contact.requestType || 'contact')}</td>
+        <td>${formatLabel(contact.status || 'new')}</td>
+        <td>${new Date(contact.createdAt).toLocaleString()}</td>
+      </tr>`
+    );
+
+    printWindow.document.write(`<!doctype html>
+<html><head><title>Muwas Admin Data Report</title>
+<style>
+body{font-family:Arial,sans-serif;padding:18px;color:#111}
+h1,h2{margin:0 0 10px}
+section{margin:0 0 24px}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{border:1px solid #ddd;padding:6px;text-align:left}
+th{background:#f4f4f4}
+</style></head><body>
+<h1>Muwas Admin Data Report</h1>
+<p>Generated: ${new Date().toLocaleString()}</p>
+<section><h2>Orders</h2><table><thead><tr><th>Order</th><th>Customer</th><th>Status</th><th>Payment</th><th>Total</th><th>Created</th></tr></thead><tbody>${ordersRows}</tbody></table></section>
+<section><h2>Payments</h2><table><thead><tr><th>Order</th><th>Method</th><th>Status</th><th>Amount</th><th>Created</th></tr></thead><tbody>${paymentsRows}</tbody></table></section>
+<section><h2>Accounts</h2><table><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Created</th></tr></thead><tbody>${usersRows}</tbody></table></section>
+<section><h2>Products</h2><table><thead><tr><th>Name</th><th>Category</th><th>Price</th><th>Stock</th></tr></thead><tbody>${productsRows}</tbody></table></section>
+<section><h2>Contacts</h2><table><thead><tr><th>Name</th><th>Email</th><th>Type</th><th>Status</th><th>Created</th></tr></thead><tbody>${contactsRows}</tbody></table></section>
+</body></html>`);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+  };
+
+  const openPrintWindow = (title, headRow, bodyRows) => {
+    const printWindow = window.open('', '_blank', 'width=1200,height=900');
+    if (!printWindow) {
+      pushNotice('Unable to open print window. Please allow popups.', 'warning');
+      return;
+    }
+
+    printWindow.document.write(`<!doctype html>
+<html><head><title>${title}</title>
+<style>
+body{font-family:Arial,sans-serif;padding:18px;color:#111}
+h1{margin:0 0 10px}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{border:1px solid #ddd;padding:6px;text-align:left}
+th{background:#f4f4f4}
+</style></head><body>
+<h1>${title}</h1>
+<p>Generated: ${new Date().toLocaleString()}</p>
+<table><thead><tr>${headRow}</tr></thead><tbody>${bodyRows}</tbody></table>
+</body></html>`);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+  };
+
+  const handlePrintOrders = () => {
+    const rows = filteredOrders
+      .map(
+        (order) => `<tr>
+      <td>${order.orderNumber || 'Order'}</td>
+      <td>${order.userId?.name || order.userId?.email || 'Unknown'}</td>
+      <td>${formatPrice(order.totalAmount || 0)}</td>
+      <td>${formatLabel(order.status || 'pending')}</td>
+      <td>${formatLabel(order.paymentStatus || 'pending')}</td>
+      <td>${new Date(order.createdAt).toLocaleString()}</td>
+    </tr>`
+      )
+      .join('');
+
+    openPrintWindow(
+      'Orders Report',
+      '<th>Order</th><th>Customer</th><th>Total</th><th>Status</th><th>Payment</th><th>Created</th>',
+      rows
+    );
+  };
+
+  const handlePrintPayments = () => {
+    const rows = paymentRows
+      .map(
+        (order) => `<tr>
+      <td>${order.orderNumber || 'Order'}</td>
+      <td>${order.userId?.email || order.userId?.name || 'Unknown'}</td>
+      <td>${formatLabel(order.paymentMethod || 'unknown')}</td>
+      <td>${formatLabel(order.paymentStatus || 'pending')}</td>
+      <td>${formatPrice(order.totalAmount || 0)}</td>
+      <td>${new Date(order.createdAt).toLocaleString()}</td>
+    </tr>`
+      )
+      .join('');
+
+    openPrintWindow(
+      'Payments Report',
+      '<th>Order</th><th>Customer</th><th>Method</th><th>Status</th><th>Amount</th><th>Created</th>',
+      rows
+    );
+  };
+
+  const handlePrintAnalytics = () => {
+    const rows = analyticsData.bars
+      .map((bar) => `<tr><td>${bar.label}</td><td>${bar.value}</td></tr>`)
+      .join('');
+
+    openPrintWindow('Analytics Report', '<th>Metric</th><th>Value</th>', rows);
   };
 
   const handleBroadcastSubmit = async (event) => {
@@ -555,7 +835,10 @@ const AdminDashboard = () => {
       setBroadcastForm({ title: '', message: '', type: 'info' });
       pushNotice('Broadcast sent to all accounts.', 'success');
     } catch (error) {
-      const messageText = error.response?.data?.message || 'Failed to send broadcast.';
+      const messageText =
+        error?.response?.status === 404
+          ? 'Notifications API route is missing (404). Restart backend and confirm /api/notifications is enabled.'
+          : error.response?.data?.message || 'Failed to send broadcast.';
       pushNotice(messageText, 'error');
     } finally {
       setBroadcastSending(false);
@@ -696,6 +979,16 @@ const AdminDashboard = () => {
       ...current,
       [contactId]: {
         ...current[contactId],
+        [field]: value,
+      },
+    }));
+  };
+
+  const handleUserDraftChange = (userId, field, value) => {
+    setUserDrafts((current) => ({
+      ...current,
+      [userId]: {
+        ...current[userId],
         [field]: value,
       },
     }));
@@ -850,6 +1143,82 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleSaveUser = async (userId) => {
+    const draft = userDrafts[userId];
+    if (!draft) {
+      return;
+    }
+
+    setUserSavingId(userId);
+    try {
+      await api.put(`/auth/users/${userId}`, draft);
+      pushNotice('User account updated successfully.', 'success');
+      await fetchDashboardData({ silent: true });
+    } catch (error) {
+      const message = error.response?.data?.message || 'Failed to update user account.';
+      pushNotice(message, 'error');
+    } finally {
+      setUserSavingId('');
+    }
+  };
+
+  const handleDeleteUser = async (userId, email) => {
+    const confirmed = window.confirm(`Delete user account ${email || ''}?`);
+    if (!confirmed) {
+      return;
+    }
+
+    setUserDeletingId(userId);
+    try {
+      await api.delete(`/auth/users/${userId}`);
+      pushNotice('User account deleted successfully.', 'success');
+      await fetchDashboardData({ silent: true });
+    } catch (error) {
+      const message = error.response?.data?.message || 'Failed to delete user account.';
+      pushNotice(message, 'error');
+    } finally {
+      setUserDeletingId('');
+    }
+  };
+
+  const handleCreateUser = async (event) => {
+    event.preventDefault();
+
+    const payload = {
+      name: String(newUserForm.name || '').trim(),
+      email: String(newUserForm.email || '').trim(),
+      password: String(newUserForm.password || ''),
+      phone: String(newUserForm.phone || '').trim(),
+      role: newUserForm.role || 'customer',
+      isApproved: Boolean(newUserForm.isApproved),
+    };
+
+    if (!payload.name || !payload.email || !payload.password) {
+      pushNotice('Name, email, and password are required to create a user.', 'warning');
+      return;
+    }
+
+    setCreatingUser(true);
+    try {
+      await api.post('/auth/users', payload);
+      pushNotice('User account created successfully.', 'success');
+      setNewUserForm({
+        name: '',
+        email: '',
+        password: '',
+        phone: '',
+        role: 'customer',
+        isApproved: true,
+      });
+      await fetchDashboardData({ silent: true });
+    } catch (error) {
+      const message = error.response?.data?.message || 'Failed to create user account.';
+      pushNotice(message, 'error');
+    } finally {
+      setCreatingUser(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="admin-hub admin-hub--loading">
@@ -960,6 +1329,9 @@ const AdminDashboard = () => {
                 </>
               )}
             </button>
+            <button type="button" className="admin-hub__refresh" onClick={handlePrintAllData}>
+              Print Data
+            </button>
           </div>
         </section>
         {mobileSidebarOpen && (
@@ -1050,37 +1422,81 @@ const AdminDashboard = () => {
 
         {activeTab === 'overview' && (
           <section className="admin-hub__panel-grid">
-            <article className="admin-panel">
+            <article className="admin-panel admin-forecast-panel">
               <div className="admin-panel__heading">
-                <h2>Admin Profile</h2>
-                <span>Update your dashboard profile image</span>
+                <h2>Business Outlook</h2>
+                <span>Profitability and future revenue projection</span>
               </div>
-              <div className="admin-profile-card">
-                <div className="admin-profile-card__media">
-                  {adminProfilePreview ? (
-                    <img src={adminProfilePreview} alt="Admin profile" />
-                  ) : (
-                    <UserRound size={34} />
-                  )}
+
+              <div className="admin-forecast-grid">
+                <div className="admin-forecast-pie">
+                  <div
+                    className="admin-forecast-pie__chart"
+                    style={{
+                      background: `conic-gradient(#10b981 0deg ${Math.round(
+                        (profitInsights.netProfit /
+                          Math.max(profitInsights.paidRevenue, 1)) *
+                          360
+                      )}deg, #f59e0b ${Math.round(
+                        (profitInsights.netProfit /
+                          Math.max(profitInsights.paidRevenue, 1)) *
+                          360
+                      )}deg 360deg)`,
+                    }}
+                  />
+                  <div className="admin-forecast-pie__legend">
+                    <span>
+                      <em className="is-profit" />
+                      Profit: {formatPrice(profitInsights.netProfit)}
+                    </span>
+                    <span>
+                      <em className="is-cost" />
+                      Cost: {formatPrice(profitInsights.totalCost)}
+                    </span>
+                  </div>
                 </div>
-                <div className="admin-profile-card__body">
-                  <strong>{user?.name || 'Admin'}</strong>
-                  <small>{user?.email}</small>
+
+                <div className="admin-forecast-bars">
+                  <div className="admin-forecast-kpis">
+                    <article>
+                      <strong>{formatPrice(profitInsights.paidRevenue)}</strong>
+                      <small>Revenue</small>
+                    </article>
+                    <article>
+                      <strong>{formatPrice(profitInsights.netProfit)}</strong>
+                      <small>Estimated Profit</small>
+                    </article>
+                    <article>
+                      <strong>{formatPrice(profitInsights.netLoss)}</strong>
+                      <small>Estimated Loss</small>
+                    </article>
+                    <article>
+                      <strong>{formatPrice(profitInsights.projectedNextMonthRevenue)}</strong>
+                      <small>Next Month Prospect</small>
+                    </article>
+                  </div>
+
+                  <div className="admin-forecast-monthly">
+                    {profitInsights.monthlyRevenueSeries.length === 0 ? (
+                      <p className="admin-empty">Not enough paid order history yet.</p>
+                    ) : (
+                      profitInsights.monthlyRevenueSeries.map((entry) => (
+                        <div key={entry.month} className="admin-forecast-monthly__bar">
+                          <span>{entry.month}</span>
+                          <strong>{formatPrice(entry.value)}</strong>
+                          <em
+                            style={{
+                              width: `${Math.max(
+                                8,
+                                (entry.value / Math.max(profitInsights.maxMonthlyRevenue, 1)) * 100
+                              )}%`,
+                            }}
+                          />
+                        </div>
+                      ))
+                    )}
+                  </div>
                 </div>
-                <input
-                  ref={adminProfileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleAdminProfileUpload}
-                  style={{ display: 'none' }}
-                />
-                <button
-                  type="button"
-                  onClick={() => adminProfileInputRef.current?.click()}
-                  disabled={profileUploading}
-                >
-                  {profileUploading ? 'Uploading...' : 'Change Photo'}
-                </button>
               </div>
             </article>
 
@@ -1113,6 +1529,22 @@ const AdminDashboard = () => {
                   ))}
                 </div>
               )}
+            </article>
+
+            <article className="admin-panel">
+              <div className="admin-panel__heading">
+                <h2>Performance Bars</h2>
+                <span>Live summary from saved dashboard data</span>
+              </div>
+              <div className="admin-analytics-bars">
+                {overviewBars.bars.map((bar) => (
+                  <button key={`overview-bar-${bar.label}`} type="button">
+                    <span>{bar.label}</span>
+                    <strong>{bar.value}</strong>
+                    <em style={{ width: `${Math.max(8, (bar.value / overviewBars.max) * 100)}%` }} />
+                  </button>
+                ))}
+              </div>
             </article>
 
             <article className="admin-panel">
@@ -1218,6 +1650,7 @@ const AdminDashboard = () => {
             <div className="admin-panel__heading">
               <h2>Order Operations</h2>
               <span>Update status, payment state, and tracking number</span>
+              <button type="button" onClick={handlePrintOrders}>Print Orders</button>
             </div>
 
             {filteredOrders.length === 0 ? (
@@ -1323,6 +1756,7 @@ const AdminDashboard = () => {
             <div className="admin-panel__heading">
               <h2>Payments</h2>
               <span>Track payment status and confirmations</span>
+              <button type="button" onClick={handlePrintPayments}>Print Payments</button>
             </div>
             {paymentRows.length === 0 ? (
               <p className="admin-empty">No payments available yet.</p>
@@ -1337,6 +1771,7 @@ const AdminDashboard = () => {
                       <th>Payment Status</th>
                       <th>Amount</th>
                       <th>Created</th>
+                      <th>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1345,9 +1780,42 @@ const AdminDashboard = () => {
                         <td>{order.orderNumber || 'Order'}</td>
                         <td>{order.userId?.email || order.userId?.name || 'Unknown'}</td>
                         <td>{formatLabel(order.paymentMethod || 'unknown')}</td>
-                        <td>{formatLabel(order.paymentStatus || 'pending')}</td>
+                        <td>
+                          <select
+                            value={orderDrafts[order._id]?.paymentStatus || order.paymentStatus || 'pending'}
+                            onChange={(event) =>
+                              handleOrderDraftChange(order._id, 'paymentStatus', event.target.value)
+                            }
+                          >
+                            {paymentStatusOptions.map((status) => (
+                              <option key={status} value={status}>
+                                {formatLabel(status)}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
                         <td>{formatPrice(order.totalAmount || 0)}</td>
                         <td>{new Date(order.createdAt).toLocaleString()}</td>
+                        <td>
+                          <div className="admin-table__actions">
+                            <button
+                              type="button"
+                              className="admin-table__action"
+                              onClick={() => handleSaveOrder(order._id)}
+                              disabled={orderSavingId === order._id}
+                            >
+                              {orderSavingId === order._id ? 'Saving...' : 'Save'}
+                            </button>
+                            <button
+                              type="button"
+                              className="admin-table__action is-danger"
+                              onClick={() => handleDeleteOrder(order._id, order.orderNumber)}
+                              disabled={orderDeletingId === order._id}
+                            >
+                              {orderDeletingId === order._id ? 'Deleting...' : 'Delete'}
+                            </button>
+                          </div>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -1361,8 +1829,67 @@ const AdminDashboard = () => {
           <section className="admin-panel">
             <div className="admin-panel__heading">
               <h2>User Accounts</h2>
-              <span>Recently created and pending approvals</span>
+              <span>View, create, edit, and delete all user accounts</span>
             </div>
+            <form className="admin-form-grid" onSubmit={handleCreateUser}>
+              <input
+                type="text"
+                placeholder="Full name"
+                value={newUserForm.name}
+                onChange={(event) =>
+                  setNewUserForm((current) => ({ ...current, name: event.target.value }))
+                }
+              />
+              <input
+                type="email"
+                placeholder="Email"
+                value={newUserForm.email}
+                onChange={(event) =>
+                  setNewUserForm((current) => ({ ...current, email: event.target.value }))
+                }
+              />
+              <input
+                type="password"
+                placeholder="Password"
+                value={newUserForm.password}
+                onChange={(event) =>
+                  setNewUserForm((current) => ({ ...current, password: event.target.value }))
+                }
+              />
+              <input
+                type="text"
+                placeholder="Phone"
+                value={newUserForm.phone}
+                onChange={(event) =>
+                  setNewUserForm((current) => ({ ...current, phone: event.target.value }))
+                }
+              />
+              <select
+                value={newUserForm.role}
+                onChange={(event) =>
+                  setNewUserForm((current) => ({ ...current, role: event.target.value }))
+                }
+              >
+                <option value="customer">Customer</option>
+                <option value="wholesale">Wholesale</option>
+                <option value="admin">Admin</option>
+              </select>
+              <select
+                value={newUserForm.isApproved ? 'approved' : 'pending'}
+                onChange={(event) =>
+                  setNewUserForm((current) => ({
+                    ...current,
+                    isApproved: event.target.value === 'approved',
+                  }))
+                }
+              >
+                <option value="approved">Approved</option>
+                <option value="pending">Pending</option>
+              </select>
+              <button type="submit" disabled={creatingUser}>
+                {creatingUser ? 'Creating...' : 'Create User'}
+              </button>
+            </form>
             {users.length === 0 ? (
               <p className="admin-empty">No user accounts found.</p>
             ) : (
@@ -1372,25 +1899,115 @@ const AdminDashboard = () => {
                     <tr>
                       <th>Name</th>
                       <th>Email</th>
+                      <th>Phone</th>
                       <th>Role</th>
                       <th>Status</th>
                       <th>Created</th>
+                      <th>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {users.map((account) => (
                       <tr key={`account-${account._id}`}>
-                        <td>{account.name || '-'}</td>
+                        <td>
+                          <input
+                            type="text"
+                            value={userDrafts[account._id]?.name || ''}
+                            onChange={(event) =>
+                              handleUserDraftChange(account._id, 'name', event.target.value)
+                            }
+                          />
+                        </td>
                         <td>{account.email}</td>
-                        <td>{formatLabel(account.role || 'customer')}</td>
-                        <td>{account.isApproved ? 'Approved' : 'Pending'}</td>
+                        <td>
+                          <input
+                            type="text"
+                            value={userDrafts[account._id]?.phone || ''}
+                            onChange={(event) =>
+                              handleUserDraftChange(account._id, 'phone', event.target.value)
+                            }
+                          />
+                        </td>
+                        <td>
+                          <select
+                            value={userDrafts[account._id]?.role || 'customer'}
+                            onChange={(event) =>
+                              handleUserDraftChange(account._id, 'role', event.target.value)
+                            }
+                          >
+                            <option value="customer">Customer</option>
+                            <option value="wholesale">Wholesale</option>
+                            <option value="admin">Admin</option>
+                          </select>
+                        </td>
+                        <td>
+                          <select
+                            value={userDrafts[account._id]?.isApproved ? 'approved' : 'pending'}
+                            onChange={(event) =>
+                              handleUserDraftChange(
+                                account._id,
+                                'isApproved',
+                                event.target.value === 'approved'
+                              )
+                            }
+                          >
+                            <option value="approved">Approved</option>
+                            <option value="pending">Pending</option>
+                          </select>
+                        </td>
                         <td>{new Date(account.createdAt).toLocaleString()}</td>
+                        <td>
+                          <div className="admin-table__actions">
+                            <button
+                              type="button"
+                              className="admin-table__action"
+                              onClick={() => handleSaveUser(account._id)}
+                              disabled={userSavingId === account._id}
+                            >
+                              {userSavingId === account._id ? 'Saving...' : 'Save'}
+                            </button>
+                            <button
+                              type="button"
+                              className="admin-table__action is-danger"
+                              onClick={() => handleDeleteUser(account._id, account.email)}
+                              disabled={userDeletingId === account._id}
+                            >
+                              {userDeletingId === account._id ? 'Deleting...' : 'Delete'}
+                            </button>
+                          </div>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
             )}
+          </section>
+        )}
+
+        {activeTab === 'analytics' && (
+          <section className="admin-panel">
+            <div className="admin-panel__heading">
+              <h2>Analytics Report</h2>
+              <span>Operational metrics from saved dashboard data</span>
+              <button type="button" onClick={handlePrintAnalytics}>Print Report</button>
+            </div>
+            <div className="admin-analytics-card__summary">
+              <span>{React.createElement(analyticsData.icon, { size: 20 })}</span>
+              <div>
+                <strong>{analyticsData.value}</strong>
+                <small>{analyticsData.title}</small>
+              </div>
+            </div>
+            <div className="admin-analytics-bars">
+              {analyticsData.bars.map((bar) => (
+                <button key={`analytics-tab-${bar.label}`} type="button">
+                  <span>{bar.label}</span>
+                  <strong>{bar.value}</strong>
+                  <em style={{ width: `${Math.max(8, (bar.value / analyticsMaxValue) * 100)}%` }} />
+                </button>
+              ))}
+            </div>
           </section>
         )}
 

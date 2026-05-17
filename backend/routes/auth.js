@@ -4,8 +4,8 @@ const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
 const multer = require('multer');
 const User = require('../models/User');
-const { auth } = require('../middleware/auth');
-const { createAdminNotification } = require('../services/notifications');
+const { auth, authorize } = require('../middleware/auth');
+const { createAdminNotification, createGlobalNotification } = require('../services/notifications');
 
 const router = express.Router();
 const localhostOriginPattern = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i;
@@ -279,7 +279,7 @@ router.post('/register', upload.single('profileImage'), async (req, res) => {
       : isWholesaleRequest
         ? 'wholesale'
         : 'customer';
-    const isApproved = resolvedRole === 'wholesale' ? false : true;
+    const isApproved = true;
 
     const user = new User({
       name,
@@ -295,10 +295,10 @@ router.post('/register', upload.single('profileImage'), async (req, res) => {
 
     await user.save();
 
-    await createAdminNotification({
+    await createGlobalNotification({
       title: 'New Account Created',
       message: `${user.name || user.email} registered as ${user.role}.`,
-      type: user.role === 'wholesale' ? 'warning' : 'info',
+      type: 'info',
       metadata: {
         userId: user._id,
         role: user.role,
@@ -309,10 +309,10 @@ router.post('/register', upload.single('profileImage'), async (req, res) => {
     const token = signUserToken(user);
 
     res.status(201).json({
-      message: resolvedRole === 'wholesale'
-        ? 'Registration successful. Your wholesale account is pending approval.'
-        : resolvedRole === 'admin'
-          ? 'Admin registration successful.'
+      message: resolvedRole === 'admin'
+        ? 'Admin registration successful.'
+        : resolvedRole === 'wholesale'
+          ? 'Wholesale registration successful.'
           : 'Registration successful.',
       token,
       user
@@ -383,7 +383,8 @@ router.post('/login', async (req, res) => {
     }
 
     if (!user.isApproved && user.role !== 'admin') {
-      return res.status(401).json({ message: 'Account not approved' });
+      user.isApproved = true;
+      await user.save();
     }
 
     const token = signUserToken(user);
@@ -556,12 +557,8 @@ router.get('/google/callback', async (req, res) => {
     }
 
     if (!user.isApproved && user.role !== 'admin') {
-      return res.redirect(
-        buildFrontendLoginRedirect(
-          { oauth: 'google', oauth_error: 'account_not_approved' },
-          frontendRedirect
-        )
-      );
+      user.isApproved = true;
+      await user.save();
     }
 
     const token = signUserToken(user);
@@ -602,6 +599,133 @@ router.get('/users', auth, async (req, res) => {
   } catch (error) {
     console.error('Get users (admin) error:', error);
     return res.status(500).json({ message: 'Server error fetching users' });
+  }
+});
+
+router.post('/users', auth, authorize('admin'), async (req, res) => {
+  try {
+    const {
+      name,
+      email,
+      password,
+      phone = '',
+      role = 'customer',
+      isApproved = true,
+    } = req.body || {};
+
+    const normalizedEmail = normalizeEmail(email);
+    const normalizedName = String(name || '').trim();
+    const normalizedPassword = String(password || '');
+    const normalizedRole = ['customer', 'wholesale', 'admin'].includes(role) ? role : 'customer';
+
+    if (!normalizedName || !normalizedEmail || !normalizedPassword) {
+      return res.status(400).json({ message: 'Name, email, and password are required.' });
+    }
+
+    if (normalizedPassword.length < 6) {
+      return res.status(400).json({ message: 'Password must be at least 6 characters long.' });
+    }
+
+    const existingUser = await User.findOne({ email: normalizedEmail });
+    if (existingUser) {
+      return res.status(400).json({ message: 'A user with this email already exists.' });
+    }
+
+    const newUser = new User({
+      name: normalizedName,
+      email: normalizedEmail,
+      password: normalizedPassword,
+      phone: String(phone || '').trim(),
+      role: normalizedRole,
+      isApproved: Boolean(isApproved),
+      authProvider: 'local',
+    });
+
+    await newUser.save();
+
+    await createGlobalNotification({
+      title: 'New Account Created',
+      message: `${newUser.name || newUser.email} was added by admin as ${newUser.role}.`,
+      type: 'info',
+      metadata: {
+        userId: newUser._id,
+        role: newUser.role,
+        isApproved: newUser.isApproved,
+        source: 'admin-create-user',
+      },
+    });
+
+    return res.status(201).json({
+      message: 'User account created successfully',
+      user: {
+        _id: newUser._id,
+        name: newUser.name,
+        email: newUser.email,
+        role: newUser.role,
+        isApproved: newUser.isApproved,
+        createdAt: newUser.createdAt,
+        authProvider: newUser.authProvider,
+        phone: newUser.phone,
+      },
+    });
+  } catch (error) {
+    console.error('Create user (admin) error:', error);
+    return res.status(500).json({ message: 'Server error creating user account' });
+  }
+});
+
+router.put('/users/:id', auth, authorize('admin'), async (req, res) => {
+  try {
+    const targetId = String(req.params.id || '').trim();
+    const { name, phone, role, isApproved } = req.body || {};
+
+    const updates = {};
+    if (typeof name === 'string') {
+      updates.name = name.trim();
+    }
+    if (typeof phone === 'string') {
+      updates.phone = phone.trim();
+    }
+    if (typeof role === 'string' && ['customer', 'wholesale', 'admin'].includes(role)) {
+      updates.role = role;
+    }
+    if (typeof isApproved === 'boolean') {
+      updates.isApproved = isApproved;
+    }
+
+    const user = await User.findByIdAndUpdate(targetId, updates, {
+      new: true,
+      runValidators: true,
+    }).select('name email role isApproved createdAt authProvider phone');
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    return res.json({ message: 'User account updated successfully', user });
+  } catch (error) {
+    console.error('Update user (admin) error:', error);
+    return res.status(500).json({ message: 'Server error updating user account' });
+  }
+});
+
+router.delete('/users/:id', auth, authorize('admin'), async (req, res) => {
+  try {
+    const targetId = String(req.params.id || '').trim();
+
+    if (String(req.user?._id || '') === targetId) {
+      return res.status(400).json({ message: 'You cannot delete your own admin account.' });
+    }
+
+    const deletedUser = await User.findByIdAndDelete(targetId);
+    if (!deletedUser) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    return res.json({ message: 'User account deleted successfully' });
+  } catch (error) {
+    console.error('Delete user (admin) error:', error);
+    return res.status(500).json({ message: 'Server error deleting user account' });
   }
 });
 

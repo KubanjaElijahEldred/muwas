@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { Bot, Send, Sparkles, X } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { assistantSuggestions, getAssistantResponse } from '../data/siteKnowledge';
@@ -22,6 +22,19 @@ const SiteAssistant = ({ siteProducts = [] }) => {
   ]);
 
   const promptSuggestions = useMemo(() => assistantSuggestions, []);
+  const [position, setPosition] = useState(() => {
+    if (typeof window === 'undefined') {
+      return null;
+    }
+
+    try {
+      const saved = window.localStorage.getItem('muwas-assistant-position');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+  const dragStartRef = useRef(null);
 
   const sendMessage = (question) => {
     const query = question.trim();
@@ -49,11 +62,72 @@ const SiteAssistant = ({ siteProducts = [] }) => {
     sendMessage(input);
   };
 
+  const handleDragStart = (event) => {
+    if (event.target.closest('button')) {
+      return;
+    }
+
+    dragStartRef.current = {
+      pointerId: event.pointerId,
+      originX: event.clientX,
+      originY: event.clientY,
+      baseX: position?.x ?? (window.innerWidth - 360),
+      baseY: position?.y ?? (window.innerHeight - 120),
+    };
+
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+  };
+
+  const handleDragMove = (event) => {
+    if (!dragStartRef.current || dragStartRef.current.pointerId !== event.pointerId) {
+      return;
+    }
+
+    const nextX = dragStartRef.current.baseX + (event.clientX - dragStartRef.current.originX);
+    const nextY = dragStartRef.current.baseY + (event.clientY - dragStartRef.current.originY);
+    const boundedX = Math.max(8, Math.min(nextX, window.innerWidth - 72));
+    const boundedY = Math.max(8, Math.min(nextY, window.innerHeight - 72));
+    setPosition({ x: boundedX, y: boundedY });
+  };
+
+  const handleDragEnd = () => {
+    if (!position) {
+      dragStartRef.current = null;
+      return;
+    }
+
+    try {
+      window.localStorage.setItem('muwas-assistant-position', JSON.stringify(position));
+    } catch {
+      // Ignore persistence issues.
+    }
+
+    dragStartRef.current = null;
+  };
+
   return (
-    <div className={`muwas-assistant ${isOpen ? 'is-open' : ''}`}>
+    <div
+      className={`muwas-assistant ${isOpen ? 'is-open' : ''}`}
+      style={
+        position
+          ? {
+              left: `${position.x}px`,
+              top: `${position.y}px`,
+              right: 'auto',
+              bottom: 'auto',
+            }
+          : undefined
+      }
+    >
       {isOpen && (
         <section className="muwas-assistant__panel" aria-label="Website assistant">
-          <header className="muwas-assistant__header">
+          <header
+            className="muwas-assistant__header muwas-assistant__drag-handle"
+            onPointerDown={handleDragStart}
+            onPointerMove={handleDragMove}
+            onPointerUp={handleDragEnd}
+            onPointerCancel={handleDragEnd}
+          >
             <div className="muwas-assistant__title">
               <span className="muwas-assistant__badge">
                 <Sparkles size={15} strokeWidth={1.9} />
@@ -68,6 +142,9 @@ const SiteAssistant = ({ siteProducts = [] }) => {
               type="button"
               className="muwas-assistant__close"
               onClick={() => setIsOpen(false)}
+              onPointerDown={(event) => {
+                event.stopPropagation();
+              }}
               aria-label="Close assistant"
             >
               <X size={18} strokeWidth={1.9} />
@@ -133,10 +210,14 @@ const SiteAssistant = ({ siteProducts = [] }) => {
         className="muwas-assistant__toggle"
         onClick={() => setIsOpen((open) => !open)}
         aria-expanded={isOpen}
-        aria-label="Open website assistant"
+        aria-label="Open MUWAS AI assistant"
+        title="Open MUWAS AI assistant"
+        onPointerDown={handleDragStart}
+        onPointerMove={handleDragMove}
+        onPointerUp={handleDragEnd}
+        onPointerCancel={handleDragEnd}
       >
         <Bot size={19} strokeWidth={1.9} />
-        <span>Ask MUWAS AI</span>
       </button>
     </div>
   );
