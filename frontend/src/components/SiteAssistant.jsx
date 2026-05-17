@@ -4,6 +4,26 @@ import { Link, useLocation } from 'react-router-dom';
 import { assistantSuggestions, getAssistantResponse } from '../data/siteKnowledge';
 
 const SiteAssistant = ({ siteProducts = [] }) => {
+  const clampPosition = (raw) => {
+    if (!raw || typeof window === 'undefined') {
+      return null;
+    }
+
+    const x = Number(raw.x);
+    const y = Number(raw.y);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) {
+      return null;
+    }
+
+    const maxX = Math.max(8, window.innerWidth - 72);
+    const maxY = Math.max(8, window.innerHeight - 72);
+
+    return {
+      x: Math.max(8, Math.min(x, maxX)),
+      y: Math.max(8, Math.min(y, maxY)),
+    };
+  };
+
   const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState('');
@@ -29,12 +49,13 @@ const SiteAssistant = ({ siteProducts = [] }) => {
 
     try {
       const saved = window.localStorage.getItem('muwas-assistant-position');
-      return saved ? JSON.parse(saved) : null;
+      return saved ? clampPosition(JSON.parse(saved)) : null;
     } catch {
       return null;
     }
   });
   const dragStartRef = useRef(null);
+  const draggedRef = useRef(false);
 
   const sendMessage = (question) => {
     const query = question.trim();
@@ -74,6 +95,7 @@ const SiteAssistant = ({ siteProducts = [] }) => {
       baseX: position?.x ?? (window.innerWidth - 360),
       baseY: position?.y ?? (window.innerHeight - 120),
     };
+    draggedRef.current = false;
 
     event.currentTarget.setPointerCapture?.(event.pointerId);
   };
@@ -85,6 +107,11 @@ const SiteAssistant = ({ siteProducts = [] }) => {
 
     const nextX = dragStartRef.current.baseX + (event.clientX - dragStartRef.current.originX);
     const nextY = dragStartRef.current.baseY + (event.clientY - dragStartRef.current.originY);
+    const movedX = Math.abs(event.clientX - dragStartRef.current.originX);
+    const movedY = Math.abs(event.clientY - dragStartRef.current.originY);
+    if (movedX > 4 || movedY > 4) {
+      draggedRef.current = true;
+    }
     const boundedX = Math.max(8, Math.min(nextX, window.innerWidth - 72));
     const boundedY = Math.max(8, Math.min(nextY, window.innerHeight - 72));
     setPosition({ x: boundedX, y: boundedY });
@@ -97,13 +124,43 @@ const SiteAssistant = ({ siteProducts = [] }) => {
     }
 
     try {
-      window.localStorage.setItem('muwas-assistant-position', JSON.stringify(position));
+      const safePosition = clampPosition(position);
+      if (safePosition) {
+        window.localStorage.setItem('muwas-assistant-position', JSON.stringify(safePosition));
+      }
     } catch {
       // Ignore persistence issues.
     }
 
     dragStartRef.current = null;
   };
+
+  const handleToggleClick = () => {
+    if (draggedRef.current) {
+      draggedRef.current = false;
+      return;
+    }
+    setIsOpen((open) => !open);
+  };
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined') {
+      return undefined;
+    }
+
+    const syncVisiblePosition = () => {
+      setPosition((current) => clampPosition(current));
+    };
+
+    syncVisiblePosition();
+    window.addEventListener('resize', syncVisiblePosition);
+    window.addEventListener('orientationchange', syncVisiblePosition);
+
+    return () => {
+      window.removeEventListener('resize', syncVisiblePosition);
+      window.removeEventListener('orientationchange', syncVisiblePosition);
+    };
+  }, []);
 
   return (
     <div
@@ -208,7 +265,7 @@ const SiteAssistant = ({ siteProducts = [] }) => {
       <button
         type="button"
         className="muwas-assistant__toggle"
-        onClick={() => setIsOpen((open) => !open)}
+        onClick={handleToggleClick}
         aria-expanded={isOpen}
         aria-label="Open MUWAS AI assistant"
         title="Open MUWAS AI assistant"

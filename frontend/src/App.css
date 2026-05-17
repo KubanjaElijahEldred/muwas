@@ -467,6 +467,7 @@ main {
 .muwas-assistant__drag-handle {
   cursor: grab;
   user-select: none;
+  touch-action: none;
 }
 
 .muwas-assistant__drag-handle:active {
@@ -633,6 +634,7 @@ main {
   color: #fff;
   box-shadow: 0 16px 32px rgba(132, 12, 12, 0.34);
   transition: transform 170ms ease, box-shadow 170ms ease, filter 170ms ease;
+  touch-action: none;
 }
 
 .muwas-assistant__toggle:hover {
