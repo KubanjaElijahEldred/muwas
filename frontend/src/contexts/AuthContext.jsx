@@ -6,6 +6,38 @@ import { showSuccessToast } from '../utils/toast';
 const AuthContext = createContext();
 const RETRYABLE_STATUS_CODES = new Set([502, 503, 504]);
 
+const getErrorMessage = (error, fallbackMessage) => {
+  const responseData = error?.response?.data;
+
+  if (typeof responseData === 'string' && responseData.trim()) {
+    return responseData.trim();
+  }
+
+  if (responseData && typeof responseData === 'object') {
+    if (typeof responseData.message === 'string' && responseData.message.trim()) {
+      return responseData.message.trim();
+    }
+
+    if (typeof responseData.error === 'string' && responseData.error.trim()) {
+      return responseData.error.trim();
+    }
+  }
+
+  if (error?.response?.status) {
+    return `Request failed (${error.response.status}). Please try again.`;
+  }
+
+  if (error?.request) {
+    return 'Unable to reach the API. Please check deployment/server status and try again.';
+  }
+
+  if (typeof error?.message === 'string' && error.message.trim()) {
+    return error.message.trim();
+  }
+
+  return fallbackMessage;
+};
+
 const buildFallbackUrl = (url = '') => {
   if (!API_FALLBACK_BASE_URL) {
     return '';
@@ -121,9 +153,7 @@ export const AuthProvider = ({ children }) => {
 
       return { success: true, user: userData };
     } catch (error) {
-      const message = error.response?.data?.message
-        || (error.request ? 'Cannot reach server. Check that backend is running on port 5000.' : null)
-        || 'Login failed';
+      const message = getErrorMessage(error, 'Login failed');
       return { success: false, message };
     }
   };
@@ -141,10 +171,7 @@ export const AuthProvider = ({ children }) => {
 
       return { success: true, user: newUser };
     } catch (error) {
-      const message = error.response?.data?.message
-        || (error.request ? 'Cannot reach server. Check that backend is running on port 5000.' : null)
-        || error.message
-        || 'Registration failed';
+      const message = getErrorMessage(error, 'Registration failed');
       return { success: false, message };
     }
   };

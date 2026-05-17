@@ -28,6 +28,7 @@ import {
   Users,
   Wallet,
   X,
+  Megaphone,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { formatLabel, formatPrice } from '../utils/productPresentation';
@@ -41,6 +42,9 @@ const contactStatusOptions = ['new', 'in_progress', 'resolved'];
 const adminNavigationItems = [
   { id: 'overview', label: 'Overview', hint: 'Global dashboard', icon: Home },
   { id: 'orders', label: 'Order Management', hint: 'Customer orders', icon: ShoppingCart },
+  { id: 'payments', label: 'Payments', hint: 'Payment tracking', icon: Wallet },
+  { id: 'accounts', label: 'Accounts', hint: 'User accounts', icon: Users },
+  { id: 'broadcast', label: 'Broadcast', hint: 'Send updates', icon: Megaphone },
   { id: 'products', label: 'Product Catalog', hint: 'Stock and pricing', icon: Store },
   { id: 'contacts', label: 'Requests', hint: 'Messages and tours', icon: Bell },
   { id: 'analytics', label: 'Reports & Analytics', hint: 'Business intelligence', icon: BarChart3 },
@@ -201,7 +205,7 @@ const countByValue = (items = [], getValue) =>
   }, {});
 
 const AdminDashboard = () => {
-  const { api, user, logout } = useAuth();
+  const { api, user, logout, updateProfile } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');
   const [activeInsight, setActiveInsight] = useState('orders');
@@ -223,9 +227,13 @@ const AdminDashboard = () => {
   const [orderDeletingId, setOrderDeletingId] = useState('');
   const [contactSavingId, setContactSavingId] = useState('');
   const [contactDeletingId, setContactDeletingId] = useState('');
-  const [showNotifications, setShowNotifications] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [broadcastForm, setBroadcastForm] = useState({ title: '', message: '', type: 'info' });
+  const [broadcastSending, setBroadcastSending] = useState(false);
+  const [profileUploading, setProfileUploading] = useState(false);
+  const [adminProfilePreview, setAdminProfilePreview] = useState(user?.profileImage || '');
   const productImageInputRef = useRef(null);
+  const adminProfileInputRef = useRef(null);
 
   const pushNotice = (text, type = 'info') => {
     if (!text) {
@@ -498,16 +506,19 @@ const AdminDashboard = () => {
   ]);
 
   const analyticsMaxValue = Math.max(...analyticsData.bars.map((bar) => bar.value), 1);
-  const paymentAlerts = useMemo(
-    () => orders.filter((order) => ['pending', 'failed', 'refunded'].includes(order.paymentStatus)),
+  const paymentRows = useMemo(
+    () =>
+      [...orders].sort((first, second) => {
+        const firstDate = new Date(first.createdAt || 0).getTime();
+        const secondDate = new Date(second.createdAt || 0).getTime();
+        return secondDate - firstDate;
+      }),
     [orders]
   );
-  const newWholesaleAccounts = useMemo(
-    () => users.filter((account) => account.role === 'wholesale' && !account.isApproved),
-    [users]
-  );
-  const recentAccounts = useMemo(() => users.slice(0, 8), [users]);
-  const notificationCount = paymentAlerts.length + newWholesaleAccounts.length;
+
+  useEffect(() => {
+    setAdminProfilePreview(user?.profileImage || '');
+  }, [user?.profileImage]);
 
   const handleSectionChange = (sectionId) => {
     setActiveTab(sectionId);
@@ -522,6 +533,77 @@ const AdminDashboard = () => {
   const handleLogout = () => {
     logout();
     navigate('/');
+  };
+
+  const handleBroadcastSubmit = async (event) => {
+    event.preventDefault();
+    const title = String(broadcastForm.title || '').trim();
+    const message = String(broadcastForm.message || '').trim();
+
+    if (!title || !message) {
+      pushNotice('Broadcast title and message are required.', 'warning');
+      return;
+    }
+
+    setBroadcastSending(true);
+    try {
+      await api.post('/notifications/broadcast', {
+        title,
+        message,
+        type: broadcastForm.type || 'info',
+      });
+      setBroadcastForm({ title: '', message: '', type: 'info' });
+      pushNotice('Broadcast sent to all accounts.', 'success');
+    } catch (error) {
+      const messageText = error.response?.data?.message || 'Failed to send broadcast.';
+      pushNotice(messageText, 'error');
+    } finally {
+      setBroadcastSending(false);
+    }
+  };
+
+  const handleAdminProfileUpload = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    if (!file.type.startsWith('image/')) {
+      pushNotice('Please upload an image file.', 'warning');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      pushNotice('Image must be 5MB or smaller.', 'warning');
+      return;
+    }
+
+    const submitData = new FormData();
+    submitData.append('name', user?.name || '');
+    submitData.append('phone', user?.phone || '');
+    submitData.append('address', JSON.stringify(user?.address || {}));
+    submitData.append('profileImage', file);
+
+    setProfileUploading(true);
+    try {
+      const result = await updateProfile(submitData);
+      if (!result.success) {
+        throw new Error(result.message || 'Failed to update profile image.');
+      }
+
+      if (result.user?.profileImage) {
+        setAdminProfilePreview(result.user.profileImage);
+      }
+
+      pushNotice('Admin profile image updated successfully.', 'success');
+    } catch (error) {
+      pushNotice(error.message || 'Failed to update profile image.', 'error');
+    } finally {
+      setProfileUploading(false);
+      if (adminProfileInputRef.current) {
+        adminProfileInputRef.current.value = '';
+      }
+    }
   };
 
   const handleProductFieldChange = (event) => {
@@ -878,14 +960,6 @@ const AdminDashboard = () => {
                 </>
               )}
             </button>
-            <button
-              type="button"
-              className="admin-hub__refresh"
-              onClick={() => setShowNotifications((current) => !current)}
-            >
-              <Bell size={16} />
-              Alerts {notificationCount > 0 ? `(${notificationCount})` : ''}
-            </button>
           </div>
         </section>
         {mobileSidebarOpen && (
@@ -895,51 +969,6 @@ const AdminDashboard = () => {
             aria-label="Close sidebar overlay"
             onClick={() => setMobileSidebarOpen(false)}
           />
-        )}
-
-        {showNotifications && (
-          <section className="admin-panel">
-            <div className="admin-panel__heading">
-              <h2>Notifications Center</h2>
-              <button type="button" onClick={() => setShowNotifications(false)}>Close</button>
-            </div>
-            <div className="admin-list">
-              <div className="admin-list__row">
-                <div>
-                  <strong>Wholesale approvals pending</strong>
-                  <small>{newWholesaleAccounts.length} account(s)</small>
-                </div>
-                <button type="button" onClick={() => handleSectionChange('overview')}>View</button>
-              </div>
-              {newWholesaleAccounts.slice(0, 5).map((account) => (
-                <div key={account._id} className="admin-list__row">
-                  <div>
-                    <strong>{account.name || account.email}</strong>
-                    <small>{account.email} • wholesale pending</small>
-                  </div>
-                  <span>{new Date(account.createdAt).toLocaleString()}</span>
-                </div>
-              ))}
-              {paymentAlerts.slice(0, 8).map((order) => (
-                <div key={order._id} className="admin-list__row">
-                  <div>
-                    <strong>{order.orderNumber || 'Order'}</strong>
-                    <small>Payment {order.paymentStatus} • {formatPrice(order.totalAmount || 0)}</small>
-                  </div>
-                  <button type="button" onClick={() => handleSectionChange('orders')}>Trace</button>
-                </div>
-              ))}
-              {recentAccounts.slice(0, 4).map((account) => (
-                <div key={`${account._id}-recent`} className="admin-list__row">
-                  <div>
-                    <strong>New account: {account.name || account.email}</strong>
-                    <small>{account.role} • {account.isApproved ? 'approved' : 'pending'}</small>
-                  </div>
-                  <span>{new Date(account.createdAt).toLocaleString()}</span>
-                </div>
-              ))}
-            </div>
-          </section>
         )}
 
         {notice.text && (
@@ -1021,6 +1050,40 @@ const AdminDashboard = () => {
 
         {activeTab === 'overview' && (
           <section className="admin-hub__panel-grid">
+            <article className="admin-panel">
+              <div className="admin-panel__heading">
+                <h2>Admin Profile</h2>
+                <span>Update your dashboard profile image</span>
+              </div>
+              <div className="admin-profile-card">
+                <div className="admin-profile-card__media">
+                  {adminProfilePreview ? (
+                    <img src={adminProfilePreview} alt="Admin profile" />
+                  ) : (
+                    <UserRound size={34} />
+                  )}
+                </div>
+                <div className="admin-profile-card__body">
+                  <strong>{user?.name || 'Admin'}</strong>
+                  <small>{user?.email}</small>
+                </div>
+                <input
+                  ref={adminProfileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleAdminProfileUpload}
+                  style={{ display: 'none' }}
+                />
+                <button
+                  type="button"
+                  onClick={() => adminProfileInputRef.current?.click()}
+                  disabled={profileUploading}
+                >
+                  {profileUploading ? 'Uploading...' : 'Change Photo'}
+                </button>
+              </div>
+            </article>
+
             <article className="admin-panel">
               <div className="admin-panel__heading">
                 <h2>Recent Orders</h2>
@@ -1252,6 +1315,135 @@ const AdminDashboard = () => {
                 </table>
               </div>
             )}
+          </section>
+        )}
+
+        {activeTab === 'payments' && (
+          <section className="admin-panel">
+            <div className="admin-panel__heading">
+              <h2>Payments</h2>
+              <span>Track payment status and confirmations</span>
+            </div>
+            {paymentRows.length === 0 ? (
+              <p className="admin-empty">No payments available yet.</p>
+            ) : (
+              <div className="admin-table-wrap">
+                <table className="admin-table">
+                  <thead>
+                    <tr>
+                      <th>Order</th>
+                      <th>Customer</th>
+                      <th>Method</th>
+                      <th>Payment Status</th>
+                      <th>Amount</th>
+                      <th>Created</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {paymentRows.map((order) => (
+                      <tr key={`payment-${order._id}`}>
+                        <td>{order.orderNumber || 'Order'}</td>
+                        <td>{order.userId?.email || order.userId?.name || 'Unknown'}</td>
+                        <td>{formatLabel(order.paymentMethod || 'unknown')}</td>
+                        <td>{formatLabel(order.paymentStatus || 'pending')}</td>
+                        <td>{formatPrice(order.totalAmount || 0)}</td>
+                        <td>{new Date(order.createdAt).toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        )}
+
+        {activeTab === 'accounts' && (
+          <section className="admin-panel">
+            <div className="admin-panel__heading">
+              <h2>User Accounts</h2>
+              <span>Recently created and pending approvals</span>
+            </div>
+            {users.length === 0 ? (
+              <p className="admin-empty">No user accounts found.</p>
+            ) : (
+              <div className="admin-table-wrap">
+                <table className="admin-table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Email</th>
+                      <th>Role</th>
+                      <th>Status</th>
+                      <th>Created</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {users.map((account) => (
+                      <tr key={`account-${account._id}`}>
+                        <td>{account.name || '-'}</td>
+                        <td>{account.email}</td>
+                        <td>{formatLabel(account.role || 'customer')}</td>
+                        <td>{account.isApproved ? 'Approved' : 'Pending'}</td>
+                        <td>{new Date(account.createdAt).toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        )}
+
+        {activeTab === 'broadcast' && (
+          <section className="admin-panel">
+            <div className="admin-panel__heading">
+              <h2>Broadcast Message</h2>
+              <span>Send one message to all user accounts</span>
+            </div>
+            <form className="admin-form" onSubmit={handleBroadcastSubmit}>
+              <label>
+                <span>Title</span>
+                <input
+                  type="text"
+                  value={broadcastForm.title}
+                  onChange={(event) =>
+                    setBroadcastForm((current) => ({ ...current, title: event.target.value }))
+                  }
+                  maxLength={140}
+                  required
+                />
+              </label>
+              <label>
+                <span>Type</span>
+                <select
+                  value={broadcastForm.type}
+                  onChange={(event) =>
+                    setBroadcastForm((current) => ({ ...current, type: event.target.value }))
+                  }
+                >
+                  <option value="info">Info</option>
+                  <option value="success">Success</option>
+                  <option value="warning">Warning</option>
+                  <option value="error">Error</option>
+                </select>
+              </label>
+              <label className="admin-form__full">
+                <span>Message</span>
+                <textarea
+                  rows={4}
+                  value={broadcastForm.message}
+                  onChange={(event) =>
+                    setBroadcastForm((current) => ({ ...current, message: event.target.value }))
+                  }
+                  required
+                />
+              </label>
+              <div className="admin-form__actions">
+                <button type="submit" disabled={broadcastSending}>
+                  {broadcastSending ? 'Sending...' : 'Send Broadcast'}
+                </button>
+              </div>
+            </form>
           </section>
         )}
 

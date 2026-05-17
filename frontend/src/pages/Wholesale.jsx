@@ -23,27 +23,8 @@ import {
   formatPrice,
   normalizeProductCatalog,
 } from '../utils/productPresentation';
-import TypewriterText from '../components/TypewriterText';
 import { fallbackProducts } from '../data/fallbackProducts';
 import { showSuccessToast } from '../utils/toast';
-
-const wholesaleFeatureTiles = [
-  {
-    icon: Truck,
-    title: 'Bulk delivery',
-    copy: 'Dedicated wholesale shipping across Uganda with volume discounts.',
-  },
-  {
-    icon: ShieldCheck,
-    title: 'Partner pricing',
-    copy: 'Exclusive wholesale rates and flexible payment terms for partners.',
-  },
-  {
-    icon: Sparkles,
-    title: 'Priority support',
-    copy: 'Dedicated account manager and priority order processing.',
-  },
-];
 
 const categoryIcons = {
   gin: FlaskConical,
@@ -62,7 +43,6 @@ const Wholesale = () => {
   const [catalogError, setCatalogError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
-  const [activeShowcaseIndex, setActiveShowcaseIndex] = useState(0);
   const [cartItems, setCartItems] = useState([]);
   const [orderLoading, setOrderLoading] = useState(false);
   const [message, setMessage] = useState('');
@@ -131,31 +111,8 @@ const Wholesale = () => {
   const showcaseProducts = (activeProducts.length > 0 ? activeProducts : products).slice(0, 3);
   const popularProducts = activeProducts.length > 0 ? activeProducts : products;
   const hasResults = activeProducts.length > 0;
-  const catalogStatus = loading
-    ? 'Refreshing the wholesale catalog...'
-    : catalogError
-      ? 'Live catalog unavailable.'
-      : 'Ready to place bulk orders.';
   const inventoryCount = products.reduce((total, product) => total + Number(product.stock || 0), 0);
   const featuredCount = products.filter((product) => product.offer && product.offer !== 'Featured').length;
-
-  useEffect(() => {
-    setActiveShowcaseIndex(0);
-  }, [showcaseProducts.length]);
-
-  useEffect(() => {
-    if (showcaseProducts.length <= 1) {
-      return undefined;
-    }
-
-    const slideTimer = window.setInterval(() => {
-      setActiveShowcaseIndex((currentIndex) => (currentIndex + 1) % showcaseProducts.length);
-    }, 4200);
-
-    return () => {
-      window.clearInterval(slideTimer);
-    };
-  }, [showcaseProducts.length]);
 
   const addToCart = (product, quantity = 1) => {
     setCartItems(prevItems => {
@@ -244,137 +201,24 @@ const Wholesale = () => {
   return (
     <div className="products-page wholesale-page">
       <div className="products-page__inner">
-        <section className="products-showcase">
-          <div className="products-showcase__hero">
-            <div className="products-showcase__copy">
-              <div className="products-showcase__eyebrow">
-                <span>Muwas Wholesale Portal</span>
-                <span>{catalogStatus}</span>
-              </div>
-
-              <h1>
-                <TypewriterText 
-                  texts={[
-                    "Exclusive wholesale pricing available.", 
-                    "Bulk orders with dedicated support.", 
-                    "Premium quality guaranteed always."
-                  ]}
-                  speed={30}
-                  delay={500}
-                  deleteSpeed={20}
-                  pauseDuration={2000}
-                />
-              </h1>
-
-              <p>
-                Access exclusive wholesale pricing, bulk ordering capabilities, and priority support 
-                tailored for retailers, bars, and distribution partners across Uganda.
-              </p>
-
-              <div className="products-showcase__actions">
-                <Link
-                  to="/contact"
-                  className="products-showcase__cta products-showcase__cta--primary"
-                >
-                  Contact sales team
-                  <ArrowRight size={17} strokeWidth={1.9} />
-                </Link>
-                <Link to="/story" className="products-showcase__cta">
-                  Learn about Muwas
-                </Link>
-              </div>
-
-              <div className="products-showcase__services">
-                {wholesaleFeatureTiles.map(({ icon: Icon, title, copy }) => (
-                  <div key={title} className="products-showcase__service">
-                    <span className="products-showcase__service-icon">
-                      {React.createElement(Icon, { size: 18, strokeWidth: 1.8 })}
-                    </span>
-                    <div>
-                      <strong>{title}</strong>
-                      <span>{copy}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="products-showcase__visual">
-              <div className="products-showcase__carousel">
-                <div
-                  className="products-showcase__track"
-                  style={{ transform: `translateX(-${activeShowcaseIndex * 100}%)` }}
-                >
-                  {showcaseProducts.map((product, index) => {
-                    const wholesalePrice = product.wholesalePrice || product.price;
-
-                    return (
-                      <div key={`${product._id}-showcase`} className="products-showcase__slide">
-                        <article
-                          className={`products-showcase__card products-showcase__card--${product.accent || 'default'} products-showcase__card--${
-                            index + 1
-                          }`}
-                        >
-                          <span className="products-showcase__card-badge">Wholesale</span>
-
-                          <div className="products-showcase__card-copy">
-                            <strong>{product.name}</strong>
-                            <span>{product.badge}</span>
-                            <p className="products-showcase__card-note">{product.promo}</p>
-
-                            <div className="products-showcase__card-facts">
-                              <span>{formatPrice(wholesalePrice)}</span>
-                              <span>{product.abv}% ABV</span>
-                              <span>{product.volume}ml</span>
-                            </div>
-
-                            <div className="products-showcase__card-actions">
-                              <button
-                                type="button"
-                                onClick={() => addToCart(product)}
-                                className="products-showcase__card-link products-showcase__card-link--primary"
-                              >
-                                <ShoppingCart size={16} strokeWidth={1.9} />
-                                Add to wholesale order
-                              </button>
-                            </div>
-                          </div>
-
-                          <div className="products-showcase__card-media">
-                            <img
-                              src={product.images[0]?.url}
-                              alt={product.images[0]?.alt || product.name}
-                              className="products-showcase__card-image"
-                            />
-                          </div>
-                        </article>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div className="products-showcase__controls">
-                <p className="products-showcase__caption">Featured wholesale products on automatic slideshow</p>
-
-                <div className="products-showcase__pagination" aria-label="Featured product slides">
-                  {showcaseProducts.map((product, index) => (
-                    <button
-                      key={`${product._id}-dot`}
-                      type="button"
-                      className={`products-showcase__slide-button ${
-                        activeShowcaseIndex === index ? 'is-active' : ''
-                      }`}
-                      onClick={() => setActiveShowcaseIndex(index)}
-                      aria-label={`Show ${product.name}`}
-                      aria-pressed={activeShowcaseIndex === index}
-                    />
-                  ))}
-                </div>
-              </div>
-            </div>
+        <section className="products-reference-hero wholesale-reference-hero">
+          <div className="products-reference-hero__copy">
+            <p>WHOLESALE PORTAL</p>
+            <h1>
+              <span>Partner</span>
+              with Muwas.
+            </h1>
+            <small>
+              Bulk ordering, partner pricing, and priority support for retailers and distributors.
+            </small>
           </div>
+          <div className="products-reference-hero__media">
+            <img src="/images/product.png" alt="Muwas wholesale banner" />
+          </div>
+          <Link to="/contact" className="products-reference-hero__wholesale">CONTACT SALES</Link>
+        </section>
 
+        <section className="products-showcase wholesale-tools">
           <div className="products-toolbar">
             <label className="products-toolbar__search">
               <Search size={18} strokeWidth={1.9} />

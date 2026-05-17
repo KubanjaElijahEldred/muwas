@@ -1,0 +1,114 @@
+const express = require('express');
+const mongoose = require('mongoose');
+const Notification = require('../models/Notification');
+const { auth, authorize } = require('../middleware/auth');
+const { createGlobalNotification } = require('../services/notifications');
+
+const router = express.Router();
+const isDatabaseReady = () => mongoose.connection.readyState === 1;
+
+const getAudienceFilter = (user) => {
+  if (user?.role === 'admin') {
+    return {
+      $or: [
+        { audience: 'all' },
+        { audience: 'admin' },
+        { recipientId: user._id },
+      ],
+    };
+  }
+
+  return {
+    $or: [
+      { audience: 'all' },
+      { audience: 'user' },
+      { recipientId: user._id },
+    ],
+  };
+};
+
+router.get('/', auth, async (req, res) => {
+  try {
+    if (!isDatabaseReady()) {
+      return res.json({ notifications: [], unreadCount: 0 });
+    }
+
+    const parsedLimit = Math.max(1, Math.min(Number(req.query.limit) || 30, 200));
+    const notifications = await Notification.find(getAudienceFilter(req.user))
+      .sort({ createdAt: -1 })
+      .limit(parsedLimit);
+
+    const unreadCount = notifications.filter((entry) => !entry.isRead).length;
+    return res.json({ notifications, unreadCount });
+  } catch (error) {
+    console.error('Get notifications error:', error);
+    return res.status(500).json({ message: 'Failed to load notifications' });
+  }
+});
+
+router.patch('/read-all', auth, async (req, res) => {
+  try {
+    if (!isDatabaseReady()) {
+      return res.json({ message: 'No notifications to update.' });
+    }
+
+    await Notification.updateMany(getAudienceFilter(req.user), { $set: { isRead: true } });
+    return res.json({ message: 'Notifications marked as read.' });
+  } catch (error) {
+    console.error('Mark all notifications read error:', error);
+    return res.status(500).json({ message: 'Failed to update notifications' });
+  }
+});
+
+router.patch('/:id/read', auth, async (req, res) => {
+  try {
+    if (!isDatabaseReady()) {
+      return res.status(404).json({ message: 'Notification not found' });
+    }
+
+    const notification = await Notification.findOneAndUpdate(
+      { _id: req.params.id, ...getAudienceFilter(req.user) },
+      { $set: { isRead: true } },
+      { new: true }
+    );
+
+    if (!notification) {
+      return res.status(404).json({ message: 'Notification not found' });
+    }
+
+    return res.json({ message: 'Notification updated', notification });
+  } catch (error) {
+    console.error('Mark notification read error:', error);
+    return res.status(500).json({ message: 'Failed to update notification' });
+  }
+});
+
+router.post('/broadcast', auth, authorize('admin'), async (req, res) => {
+  try {
+    const title = String(req.body?.title || '').trim();
+    const message = String(req.body?.message || '').trim();
+    const type = String(req.body?.type || 'info').trim();
+
+    if (!title || !message) {
+      return res.status(400).json({ message: 'Title and message are required.' });
+    }
+
+    if (!isDatabaseReady()) {
+      return res.status(503).json({ message: 'Database is not ready.' });
+    }
+
+    await createGlobalNotification({
+      title,
+      message,
+      type,
+      metadata: { source: 'admin-broadcast', senderId: req.user?._id },
+    });
+
+    return res.status(201).json({ message: 'Broadcast sent successfully.' });
+  } catch (error) {
+    console.error('Broadcast notification error:', error);
+    return res.status(500).json({ message: 'Failed to send broadcast notification' });
+  }
+});
+
+module.exports = router;

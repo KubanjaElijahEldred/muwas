@@ -22,6 +22,7 @@ const {
   normalizePhoneNumber: normalizeAirtelPhoneNumber,
   requestToPay: requestAirtelPayment,
 } = require('../services/airtelMoney');
+const { createAdminNotification } = require('../services/notifications');
 
 const router = express.Router();
 const isDatabaseReady = () => mongoose.connection.readyState === 1;
@@ -604,6 +605,17 @@ router.post('/', auth, async (req, res) => {
     await reserveInventory(orderProducts);
     inventoryReserved = true;
 
+    await createAdminNotification({
+      title: 'New Order Placed',
+      message: `${order.orderNumber} has been created and needs confirmation.`,
+      type: 'info',
+      metadata: {
+        orderId: order._id,
+        totalAmount: order.totalAmount,
+        paymentStatus: order.paymentStatus,
+      },
+    });
+
     if (selectedProvider) {
       let responseStatus = 201;
       let responseMessage = `${selectedProvider.label} prompt sent. Check the customer phone to approve the payment.`;
@@ -1051,6 +1063,10 @@ router.put('/:id/status', auth, authorize('admin'), async (req, res) => {
     if (paymentStatus) updateData.paymentStatus = paymentStatus;
     if (trackingNumber) updateData.trackingNumber = trackingNumber;
 
+    const existingOrder = await Order.findById(req.params.id).select(
+      'paymentStatus orderNumber totalAmount'
+    );
+
     const order = await Order.findByIdAndUpdate(
       req.params.id,
       updateData,
@@ -1059,6 +1075,22 @@ router.put('/:id/status', auth, authorize('admin'), async (req, res) => {
 
     if (!order) {
       return res.status(404).json({ message: 'Order not found' });
+    }
+
+    if (
+      paymentStatus === 'paid' &&
+      existingOrder &&
+      existingOrder.paymentStatus !== 'paid'
+    ) {
+      await createAdminNotification({
+        title: 'Payment Received',
+        message: `${order.orderNumber || 'Order'} payment has been confirmed.`,
+        type: 'success',
+        metadata: {
+          orderId: order._id,
+          totalAmount: order.totalAmount,
+        },
+      });
     }
 
     res.json({

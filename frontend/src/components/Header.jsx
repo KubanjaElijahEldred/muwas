@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
-  Camera,
+  Bell,
   ChevronDown,
   LogIn,
   Search,
@@ -21,8 +21,11 @@ const navLinks = [
 
 const Header = () => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [navSearch, setNavSearch] = useState('');
-  const { user, logout, isAuthenticated } = useAuth();
+  const { user, logout, isAuthenticated, api } = useAuth();
+  const [notifications, setNotifications] = useState([]);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
   const { getCartCount } = useCart();
   const navigate = useNavigate();
   const location = useLocation();
@@ -39,6 +42,59 @@ const Header = () => {
     event.preventDefault();
     const query = navSearch.trim();
     navigate(query ? `/products?search=${encodeURIComponent(query)}` : '/products');
+  };
+
+  const fetchNotifications = async () => {
+    if (!isAuthenticated) {
+      return;
+    }
+
+    try {
+      setNotificationsLoading(true);
+      const response = await api.get('/notifications?limit=10');
+      setNotifications(Array.isArray(response.data?.notifications) ? response.data.notifications : []);
+    } catch {
+      setNotifications([]);
+    } finally {
+      setNotificationsLoading(false);
+    }
+  };
+
+  React.useEffect(() => {
+    fetchNotifications();
+  }, [isAuthenticated]);
+
+  const unreadCount = notifications.filter((entry) => !entry.isRead).length;
+
+  const handleOpenNotifications = async () => {
+    const nextOpen = !isNotificationsOpen;
+    setIsNotificationsOpen(nextOpen);
+
+    if (nextOpen) {
+      await fetchNotifications();
+    }
+  };
+
+  const markNotificationRead = async (notificationId) => {
+    try {
+      await api.patch(`/notifications/${notificationId}/read`);
+      setNotifications((current) =>
+        current.map((entry) =>
+          entry._id === notificationId ? { ...entry, isRead: true } : entry
+        )
+      );
+    } catch {
+      // Ignore silent failure and keep current state.
+    }
+  };
+
+  const markAllNotificationsRead = async () => {
+    try {
+      await api.patch('/notifications/read-all');
+      setNotifications((current) => current.map((entry) => ({ ...entry, isRead: true })));
+    } catch {
+      // Ignore silent failure and keep current state.
+    }
   };
 
   return (
@@ -76,10 +132,6 @@ const Header = () => {
           </form>
 
           <div className="muwas-header__actions">
-            <Link to="/contact" className="muwas-header__circle-action" aria-label="Tasting bookings">
-              <Camera size={19} strokeWidth={1.9} />
-            </Link>
-
             <Link to="/cart" className="muwas-header__cart-chip" aria-label="Cart">
               <ShoppingCart size={20} strokeWidth={1.9} />
               <span>Cart</span>
@@ -87,7 +139,49 @@ const Header = () => {
             </Link>
 
             {isAuthenticated ? (
-              <div className="muwas-account">
+              <>
+                <div className="muwas-notifications">
+                  <button
+                    type="button"
+                    className="muwas-header__circle-action"
+                    onClick={handleOpenNotifications}
+                    aria-label="Notifications"
+                  >
+                    <Bell size={19} strokeWidth={1.9} />
+                    {unreadCount > 0 && <em className="muwas-notifications__count">{unreadCount}</em>}
+                  </button>
+
+                  {isNotificationsOpen && (
+                    <div className="muwas-notifications__menu">
+                      <div className="muwas-notifications__header">
+                        <strong>Notifications</strong>
+                        <button type="button" onClick={markAllNotificationsRead}>
+                          Mark all read
+                        </button>
+                      </div>
+                      {notificationsLoading ? (
+                        <p className="muwas-notifications__empty">Loading...</p>
+                      ) : notifications.length === 0 ? (
+                        <p className="muwas-notifications__empty">No notifications yet.</p>
+                      ) : (
+                        <div className="muwas-notifications__list">
+                          {notifications.map((entry) => (
+                            <button
+                              key={entry._id}
+                              type="button"
+                              className={`muwas-notifications__item ${entry.isRead ? '' : 'is-unread'}`}
+                              onClick={() => markNotificationRead(entry._id)}
+                            >
+                              <strong>{entry.title}</strong>
+                              <span>{entry.message}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <div className="muwas-account">
                 <button
                   type="button"
                   className="muwas-header__account-chip"
@@ -130,7 +224,8 @@ const Header = () => {
                     </button>
                   </div>
                 )}
-              </div>
+                </div>
+              </>
             ) : (
               <Link to="/login" className="muwas-header__register-button muwas-header__signin-button">
                 <LogIn size={17} strokeWidth={2} />

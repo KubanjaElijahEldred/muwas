@@ -1,8 +1,6 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
 const Product = require('../models/Product');
 const { auth, authorize } = require('../middleware/auth');
 const {
@@ -17,23 +15,6 @@ const router = express.Router();
 const allowedCategories = new Set(['gin', 'vodka', 'rum', 'whiskey', 'liqueur', 'other']);
 const isDatabaseReady = () => mongoose.connection.readyState === 1;
 
-// Configure multer for product image uploads
-const uploadsDir = path.join(__dirname, '../uploads/products');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-}
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadsDir);
-  },
-  filename: (req, file, cb) => {
-    // Generate unique filename
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, `product-${uniqueSuffix}${path.extname(file.originalname)}`);
-  }
-});
-
 const fileFilter = (req, file, cb) => {
   // Accept only image files
   if (file.mimetype.startsWith('image/')) {
@@ -44,12 +25,20 @@ const fileFilter = (req, file, cb) => {
 };
 
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   fileFilter,
   limits: {
     fileSize: 5 * 1024 * 1024, // 5MB limit
   }
 });
+
+const fileToDataUrl = (file) => {
+  if (!file?.buffer || !file?.mimetype) {
+    return '';
+  }
+
+  return `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
+};
 
 const normalizeText = (value = '') => String(value || '').trim();
 const parseNumber = (value, fallback = 0) => {
@@ -399,9 +388,9 @@ router.post('/', auth, authorize('admin'), upload.single('productImage'), async 
         }
       }
       
-      // Add the uploaded image URL to the images array
+      // Persist uploaded image in DB-friendly data URL format for serverless compatibility.
       images[0] = {
-        url: `/uploads/products/${req.file.filename}`,
+        url: fileToDataUrl(req.file),
         alt: images[0]?.alt || 'Product image'
       };
       
@@ -464,9 +453,9 @@ router.put('/:id', auth, authorize('admin'), upload.single('productImage'), asyn
         }
       }
       
-      // Add the uploaded image URL to the images array
+      // Persist uploaded image in DB-friendly data URL format for serverless compatibility.
       images[0] = {
-        url: `/uploads/products/${req.file.filename}`,
+        url: fileToDataUrl(req.file),
         alt: images[0]?.alt || 'Product image'
       };
       

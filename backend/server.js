@@ -13,6 +13,7 @@ const productRoutes = require('./routes/products');
 const orderRoutes = require('./routes/orders');
 const contactRoutes = require('./routes/contact');
 const wholesaleRoutes = require('./routes/wholesale');
+const notificationRoutes = require('./routes/notifications');
 const { ensureDefaultCatalog } = require('./services/bootstrapCatalog');
 const { ensureDefaultAdmin } = require('./services/bootstrapAdmin');
 
@@ -148,6 +149,7 @@ app.use('/api/products', productRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/wholesale', wholesaleRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({
@@ -155,6 +157,11 @@ app.get('/api/health', (req, res) => {
     timestamp: new Date().toISOString(),
     databaseConnected: mongoose.connection.readyState === 1,
     databaseReadyState: mongoose.connection.readyState,
+    authConfig: {
+      jwtSecretConfigured: Boolean(process.env.JWT_SECRET),
+      mongoUriConfigured: Boolean(process.env.MONGODB_URI),
+      frontendUrlConfigured: Boolean(process.env.FRONTEND_URL),
+    },
   });
 });
 

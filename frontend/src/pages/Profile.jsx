@@ -166,21 +166,12 @@ const Profile = () => {
     }
 
     try {
-      const response = await fetch('/api/auth/profile', {
-        method: 'PUT',
-        body: submitData,
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
+      const result = await updateProfile(submitData);
 
-      const result = await response.json();
-      
-      if (response.ok) {
+      if (result.success) {
         setMessage('Profile updated successfully!');
         setIsEditing(false);
-        // Update user context with new data
-        await updateProfile(formData);
+        setProfileImage(null);
       } else {
         setMessage(result.message || 'Failed to update profile');
       }

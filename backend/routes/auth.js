@@ -5,6 +5,7 @@ const mongoose = require('mongoose');
 const multer = require('multer');
 const User = require('../models/User');
 const { auth } = require('../middleware/auth');
+const { createAdminNotification } = require('../services/notifications');
 
 const router = express.Router();
 const localhostOriginPattern = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i;
@@ -293,6 +294,17 @@ router.post('/register', upload.single('profileImage'), async (req, res) => {
     });
 
     await user.save();
+
+    await createAdminNotification({
+      title: 'New Account Created',
+      message: `${user.name || user.email} registered as ${user.role}.`,
+      type: user.role === 'wholesale' ? 'warning' : 'info',
+      metadata: {
+        userId: user._id,
+        role: user.role,
+        isApproved: user.isApproved,
+      },
+    });
 
     const token = signUserToken(user);
 
@@ -617,11 +629,35 @@ router.put('/profile', auth, upload.single('profileImage'), async (req, res) => 
       updates.profileImage = fileToDataUrl(req.file);
     }
 
+    let targetUserId = req.user._id;
+
+    if (req.user?.isSuperAdmin) {
+      let persistedAdmin = await User.findOne({ email: normalizeEmail(req.user.email) });
+
+      if (!persistedAdmin) {
+        persistedAdmin = new User({
+          name: req.user.name || 'Admin',
+          email: normalizeEmail(req.user.email),
+          password: crypto.randomBytes(24).toString('hex'),
+          authProvider: 'local',
+          role: 'admin',
+          isApproved: true,
+        });
+        await persistedAdmin.save();
+      }
+
+      targetUserId = persistedAdmin._id;
+    }
+
     const user = await User.findByIdAndUpdate(
-      req.user._id,
+      targetUserId,
       updates,
       { new: true, runValidators: true }
     );
+
+    if (!user) {
+      return res.status(404).json({ message: 'User profile not found.' });
+    }
 
     res.json({
       message: 'Profile updated successfully',
