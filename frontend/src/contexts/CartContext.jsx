@@ -213,15 +213,43 @@ export const CartProvider = ({ children }) => {
       }
 
       if (invalidItems.length > 0) {
+        const validItems = orderItems.filter((item) => !item.isPreviewOnly);
+        if (validItems.length !== orderItems.length) {
+          setCartItems(validItems);
+        }
         return {
           success: false,
           message:
-            'Some cart items could not be matched to live products. Please clear cart and add products again from the live catalog.',
+            'Some outdated products were removed from your cart. Please review the updated cart and continue.',
+        };
+      }
+
+      // Remove items that were deleted from the live catalog after they were added to cart.
+      const liveProductsResponse = await api.get('/products');
+      const liveProducts = Array.isArray(liveProductsResponse.data?.products)
+        ? liveProductsResponse.data.products
+        : [];
+      const liveProductIds = new Set(liveProducts.map((product) => String(product._id)));
+      const catalogMatchedItems = orderItems.filter((item) => liveProductIds.has(String(item.productId)));
+
+      if (catalogMatchedItems.length !== orderItems.length) {
+        setCartItems(catalogMatchedItems);
+
+        if (catalogMatchedItems.length === 0) {
+          return {
+            success: false,
+            message: 'Your cart had removed products and is now empty. Please add products from the latest catalog.',
+          };
+        }
+
+        return {
+          success: false,
+          message: 'Removed products no longer available in catalog. Please review your cart and place order again.',
         };
       }
 
       const response = await api.post('/orders', {
-        products: orderItems.map(item => ({
+        products: catalogMatchedItems.map(item => ({
           productId: item.productId,
           quantity: item.quantity
         })),

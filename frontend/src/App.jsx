@@ -23,6 +23,7 @@ import Profile from './pages/Profile';
 import Orders from './pages/Orders';
 import Wholesale from './pages/Wholesale';
 import AdminDashboard from './pages/AdminDashboard';
+import BusinessCard from './pages/BusinessCard';
 import ProtectedRoute from './components/ProtectedRoute';
 import { fetchWithApiFallback } from './utils/api';
 import './App.css';
@@ -149,6 +150,7 @@ function App() {
               }
             />
             <Route path="/contact" element={<Contact />} />
+            <Route path="/business-card" element={<BusinessCard />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route

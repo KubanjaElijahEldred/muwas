@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="640" viewBox="0 0 1080 640">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ff7a00"/>
+      <stop offset="100%" stop-color="#c90f10"/>
+    </linearGradient>
+  </defs>
+  <rect width="1080" height="640" fill="url(#bg)"/>
+  <image href="/images/home.png" x="0" y="0" width="1080" height="640" preserveAspectRatio="xMidYMid slice" opacity="0.2"/>
+  <rect x="36" y="36" width="1008" height="568" rx="22" fill="rgba(255,255,255,0.94)"/>
+  <image href="/images/logo-muwas.jpg" x="76" y="76" width="96" height="96" preserveAspectRatio="xMidYMid meet"/>
+  <text x="196" y="120" fill="#141414" font-size="54" font-family="Arial, sans-serif" font-weight="700">Muwas Distilling</text>
+  <text x="196" y="162" fill="#4a4a4a" font-size="24" font-family="Arial, sans-serif">Ugandan craft distilling and wholesale supply</text>
+  <text x="76" y="228" fill="#1d1d1d" font-size="26" font-family="Arial, sans-serif">Phone: +256772522646</text>
+  <text x="76" y="266" fill="#1d1d1d" font-size="26" font-family="Arial, sans-serif">WhatsApp: +256772522646</text>
+  <text x="76" y="304" fill="#1d1d1d" font-size="26" font-family="Arial, sans-serif">Gmail: muwasdistilling@gmail.com</text>
+  <text x="76" y="342" fill="#1d1d1d" font-size="26" font-family="Arial, sans-serif">Website: muwas.vercel.app</text>
+  <text x="76" y="386" fill="#333" font-size="18" font-family="Arial, sans-serif">Nantale Oasis breadfruit, Kaseesa Village, Kyabutaika Parish,</text>
+  <text x="76" y="412" fill="#333" font-size="18" font-family="Arial, sans-serif">Kakkooge Sub-county, Nakasongola District</text>
+  <image href="/images/product.png" x="612" y="184" width="382" height="380" preserveAspectRatio="xMidYMid slice"/>
+</svg>

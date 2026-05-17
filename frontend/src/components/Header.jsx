@@ -4,9 +4,11 @@ import {
   Bell,
   ChevronDown,
   LogIn,
+  Phone,
   Search,
   ShoppingCart,
   User,
+  UserRound,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useCart } from '../contexts/CartContext';
@@ -162,6 +164,73 @@ const Header = () => {
               <span className="muwas-brand__subtitle">Ugandan craft distilling</span>
             </span>
           </Link>
+          <div className="muwas-header__mobile-quick-actions">
+            {isAuthenticated && (
+              <div className="muwas-notifications">
+                <button
+                  type="button"
+                  className="muwas-header__circle-action"
+                  onClick={handleOpenNotifications}
+                  aria-label="Notifications"
+                >
+                  <Bell size={18} strokeWidth={1.9} />
+                  {unreadCount > 0 && <em className="muwas-notifications__count">{unreadCount}</em>}
+                </button>
+                {isNotificationsOpen && notificationsEnabled && (
+                  <div className="muwas-notifications__menu">
+                    <div className="muwas-notifications__header">
+                      <strong>Notifications</strong>
+                      <button type="button" onClick={markAllNotificationsRead}>
+                        Mark all read
+                      </button>
+                    </div>
+                    {notificationsLoading ? (
+                      <p className="muwas-notifications__empty">Loading...</p>
+                    ) : !notificationsEnabled ? (
+                      <p className="muwas-notifications__empty">Notifications are not enabled yet.</p>
+                    ) : notifications.length === 0 ? (
+                      <p className="muwas-notifications__empty">No notifications yet.</p>
+                    ) : (
+                      <div className="muwas-notifications__list">
+                        {notifications.map((entry) => (
+                          <button
+                            key={entry._id}
+                            type="button"
+                            className={`muwas-notifications__item ${entry.isRead ? '' : 'is-unread'}`}
+                            onClick={() => markNotificationRead(entry._id)}
+                          >
+                            <strong>{entry.title}</strong>
+                            <span>{entry.message}</span>
+                            <small className="muwas-notifications__source">
+                              From {entry?.metadata?.sourceLabel || 'Muwas Admin'}
+                            </small>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+            {isAuthenticated && (
+              <Link
+                to="/profile"
+                className="muwas-header__circle-action"
+                aria-label="Open profile"
+                title="Open profile"
+              >
+                <UserRound size={18} strokeWidth={1.9} />
+              </Link>
+            )}
+            <a
+              href="/business-card"
+              className="muwas-header__circle-action"
+              aria-label="Open business card"
+              title="Open business card"
+            >
+              <Phone size={18} strokeWidth={1.9} />
+            </a>
+          </div>
 
           <nav className="muwas-header__nav" aria-label="Primary">
             {navLinks.map((link) => (
@@ -228,6 +297,9 @@ const Header = () => {
                             >
                               <strong>{entry.title}</strong>
                               <span>{entry.message}</span>
+                              <small className="muwas-notifications__source">
+                                From {entry?.metadata?.sourceLabel || 'Muwas Admin'}
+                              </small>
                             </button>
                           ))}
                         </div>

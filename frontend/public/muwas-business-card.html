@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Muwas Distilling Business Card</title>
+  <style>
+    body { margin: 0; font-family: Arial, sans-serif; background: #f2f2f2; color: #111; }
+    .card {
+      width: min(920px, calc(100% - 24px));
+      margin: 18px auto;
+      border: 1px solid #ddd;
+      border-radius: 12px;
+      overflow: hidden;
+      background: #fff;
+    }
+    .hero { position: relative; }
+    .hero img { width: 100%; height: 280px; object-fit: cover; display: block; }
+    .hero .logo {
+      position: absolute;
+      left: 14px;
+      top: 14px;
+      width: 68px;
+      height: 68px;
+      border-radius: 10px;
+      background: #fff;
+      padding: 4px;
+      box-shadow: 0 8px 20px rgba(0,0,0,.2);
+    }
+    .content { padding: 14px 16px 18px; }
+    h1 { margin: 0 0 4px; font-size: 28px; }
+    p { margin: 4px 0; font-size: 15px; }
+    .pair { margin-top: 12px; border-radius: 10px; overflow: hidden; border: 1px solid #eee; }
+    .pair img { width: 100%; max-height: 300px; object-fit: cover; display: block; }
+  </style>
+</head>
+<body>
+  <article class="card">
+    <section class="hero">
+      <img src="/images/home.png" alt="Muwas signature bottle scene" />
+      <img class="logo" src="/images/logo-muwas.jpg" alt="Muwas logo" />
+    </section>
+    <section class="content">
+      <h1>Muwas Distilling</h1>
+      <p>Ugandan craft distilling. Signature bottles, wholesale, and retail supply.</p>
+      <p>Website: https://muwas.vercel.app</p>
+      <p>Email: hello@muwasdistilling.ug</p>
+      <p>Phone: +256 700 000 000</p>
+      <div class="pair">
+        <img src="/images/product.png" alt="Muwas bottle pair signature artwork" />
+      </div>
+    </section>
+  </article>
+</body>
+</html>

@@ -300,6 +300,7 @@ router.post('/register', upload.single('profileImage'), async (req, res) => {
       message: `${user.name || user.email} registered as ${user.role}.`,
       type: 'info',
       metadata: {
+        sourceLabel: 'Muwas Admin',
         userId: user._id,
         role: user.role,
         isApproved: user.isApproved,
@@ -648,6 +649,7 @@ router.post('/users', auth, authorize('admin'), async (req, res) => {
       message: `${newUser.name || newUser.email} was added by admin as ${newUser.role}.`,
       type: 'info',
       metadata: {
+        sourceLabel: 'Muwas Admin',
         userId: newUser._id,
         role: newUser.role,
         isApproved: newUser.isApproved,

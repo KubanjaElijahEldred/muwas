@@ -7,13 +7,17 @@ const { createGlobalNotification } = require('../services/notifications');
 const router = express.Router();
 const isDatabaseReady = () => mongoose.connection.readyState === 1;
 
+const isObjectId = (value) => mongoose.Types.ObjectId.isValid(String(value || ''));
+
 const getAudienceFilter = (user) => {
+  const recipientCondition = isObjectId(user?._id) ? [{ recipientId: user._id }] : [];
+
   if (user?.role === 'admin') {
     return {
       $or: [
         { audience: 'all' },
         { audience: 'admin' },
-        { recipientId: user._id },
+        ...recipientCondition,
       ],
     };
   }
@@ -22,7 +26,7 @@ const getAudienceFilter = (user) => {
     $or: [
       { audience: 'all' },
       { audience: 'user' },
-      { recipientId: user._id },
+      ...recipientCondition,
     ],
   };
 };
@@ -34,11 +38,14 @@ router.get('/', auth, async (req, res) => {
     }
 
     const parsedLimit = Math.max(1, Math.min(Number(req.query.limit) || 30, 200));
-    const notifications = await Notification.find(getAudienceFilter(req.user))
+    const audienceFilter = getAudienceFilter(req.user);
+    const notifications = await Notification.find(audienceFilter)
       .sort({ createdAt: -1 })
       .limit(parsedLimit);
-
-    const unreadCount = notifications.filter((entry) => !entry.isRead).length;
+    const unreadCount = await Notification.countDocuments({
+      ...audienceFilter,
+      isRead: false,
+    });
     return res.json({ notifications, unreadCount });
   } catch (error) {
     console.error('Get notifications error:', error);
@@ -101,7 +108,11 @@ router.post('/broadcast', auth, authorize('admin'), async (req, res) => {
       title,
       message,
       type,
-      metadata: { source: 'admin-broadcast', senderId: req.user?._id },
+      metadata: {
+        source: 'admin-broadcast',
+        sourceLabel: 'Muwas Admin',
+        senderId: req.user?._id,
+      },
     });
 
     return res.status(201).json({ message: 'Broadcast sent successfully.' });

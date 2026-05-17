@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   ArrowRight,
   Filter,
@@ -27,8 +27,9 @@ import { useAuth } from '../contexts/AuthContext';
 import { showSuccessToast } from '../utils/toast';
 
 const Profile = () => {
-  const { user, updateProfile } = useAuth();
+  const { user, updateProfile, logout } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const fileInputRef = useRef(null);
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -208,6 +209,11 @@ const Profile = () => {
     }
   };
 
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
+
   if (!user) {
     return (
       <div className="products-page">
@@ -293,6 +299,14 @@ const Profile = () => {
                 {loading ? 'Saving...' : 'Save Changes'}
               </button>
             )}
+            <button
+              type="button"
+              className="profile-header__btn btn-cancel"
+              onClick={handleLogout}
+            >
+              <LogOut size={16} strokeWidth={1.8} />
+              Logout
+            </button>
           </div>
         </div>
       </div>
