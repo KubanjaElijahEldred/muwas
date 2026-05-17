@@ -351,7 +351,12 @@ const AdminDashboard = () => {
       if (productsResult.status === 'rejected') failedSegments.push('products');
       if (contactsResult.status === 'rejected') failedSegments.push('contacts');
       if (usersResult.status === 'rejected') failedSegments.push('users');
-      if (feedbackResult.status === 'rejected') failedSegments.push('feedback');
+      if (feedbackResult.status === 'rejected') {
+        const feedbackStatus = Number(feedbackResult.reason?.response?.status || 0);
+        if (feedbackStatus !== 404) {
+          failedSegments.push('feedback');
+        }
+      }
 
       setOrders(nextOrders);
       setProducts(nextProducts);

@@ -81,14 +81,14 @@ const Header = () => {
       setNotifications(nextNotifications);
       setUnreadCount(nextUnread);
     } catch (error) {
-      if (error?.response?.status === 404) {
+      const statusCode = Number(error?.response?.status || 0);
+      if (statusCode === 404 || statusCode >= 500) {
         notificationsEnabledRef.current = false;
         setNotificationsEnabled(false);
       }
-      if (!silent) {
-        setNotifications([]);
-        setUnreadCount(0);
-      }
+      setNotifications([]);
+      setUnreadCount(0);
+      unreadCountRef.current = 0;
     } finally {
       notificationsRequestInFlightRef.current = false;
       if (!silent) {
