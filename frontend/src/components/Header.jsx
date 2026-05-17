@@ -53,7 +53,7 @@ const Header = () => {
     navigate(query ? `/products?search=${encodeURIComponent(query)}` : '/products');
   };
 
-  const fetchNotifications = async () => {
+  const fetchNotifications = async ({ silent = false } = {}) => {
     if (!isAuthenticated || !notificationsEnabledRef.current || notificationsRequestInFlightRef.current) {
       return;
     }
@@ -61,7 +61,9 @@ const Header = () => {
     notificationsRequestInFlightRef.current = true;
 
     try {
-      setNotificationsLoading(true);
+      if (!silent) {
+        setNotificationsLoading(true);
+      }
       const response = await api.get('/notifications?limit=10');
       const nextNotifications = Array.isArray(response.data?.notifications) ? response.data.notifications : [];
       const nextUnreadCount = Number(response.data?.unreadCount);
@@ -83,11 +85,15 @@ const Header = () => {
         notificationsEnabledRef.current = false;
         setNotificationsEnabled(false);
       }
-      setNotifications([]);
-      setUnreadCount(0);
+      if (!silent) {
+        setNotifications([]);
+        setUnreadCount(0);
+      }
     } finally {
       notificationsRequestInFlightRef.current = false;
-      setNotificationsLoading(false);
+      if (!silent) {
+        setNotificationsLoading(false);
+      }
     }
   };
 
@@ -99,7 +105,7 @@ const Header = () => {
     if (!notificationsEnabled) {
       return;
     }
-    fetchNotifications();
+    fetchNotifications({ silent: false });
   }, [isAuthenticated, notificationsEnabled]);
 
   React.useEffect(() => {
@@ -108,7 +114,7 @@ const Header = () => {
     }
 
     const refreshTimer = window.setInterval(() => {
-      fetchNotifications();
+      fetchNotifications({ silent: true });
     }, 20000);
 
     return () => {
@@ -121,7 +127,7 @@ const Header = () => {
     setIsNotificationsOpen(nextOpen);
 
     if (nextOpen && notificationsEnabledRef.current) {
-      await fetchNotifications();
+      await fetchNotifications({ silent: false });
     }
   };
 
@@ -142,7 +148,15 @@ const Header = () => {
 
   const markAllNotificationsRead = async () => {
     try {
-      await api.patch('/notifications/read-all');
+      try {
+        await api.patch('/notifications/read-all');
+      } catch (error) {
+        if (error?.response?.status === 405) {
+          await api.post('/notifications/read-all');
+        } else {
+          throw error;
+        }
+      }
       setNotifications((current) => current.map((entry) => ({ ...entry, isRead: true })));
       setUnreadCount(0);
       unreadCountRef.current = 0;
@@ -184,7 +198,7 @@ const Header = () => {
                         Mark all read
                       </button>
                     </div>
-                    {notificationsLoading ? (
+                    {notificationsLoading && notifications.length === 0 ? (
                       <p className="muwas-notifications__empty">Loading...</p>
                     ) : !notificationsEnabled ? (
                       <p className="muwas-notifications__empty">Notifications are not enabled yet.</p>
@@ -258,6 +272,14 @@ const Header = () => {
               <span>Cart</span>
               {cartCount > 0 && <strong>{cartCount}</strong>}
             </Link>
+            <Link
+              to="/business-card"
+              className="muwas-header__circle-action"
+              aria-label="Open business card"
+              title="Open business card"
+            >
+              <Phone size={19} strokeWidth={1.9} />
+            </Link>
 
             {isAuthenticated ? (
               <>
@@ -280,7 +302,7 @@ const Header = () => {
                           Mark all read
                         </button>
                       </div>
-                      {notificationsLoading ? (
+                      {notificationsLoading && notifications.length === 0 ? (
                         <p className="muwas-notifications__empty">Loading...</p>
                       ) : !notificationsEnabled ? (
                         <p className="muwas-notifications__empty">Notifications are not enabled yet.</p>

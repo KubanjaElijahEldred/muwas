@@ -67,7 +67,44 @@ router.patch('/read-all', auth, async (req, res) => {
   }
 });
 
+router.post('/read-all', auth, async (req, res) => {
+  try {
+    if (!isDatabaseReady()) {
+      return res.json({ message: 'No notifications to update.' });
+    }
+
+    await Notification.updateMany(getAudienceFilter(req.user), { $set: { isRead: true } });
+    return res.json({ message: 'Notifications marked as read.' });
+  } catch (error) {
+    console.error('Mark all notifications read error:', error);
+    return res.status(500).json({ message: 'Failed to update notifications' });
+  }
+});
+
 router.patch('/:id/read', auth, async (req, res) => {
+  try {
+    if (!isDatabaseReady()) {
+      return res.status(404).json({ message: 'Notification not found' });
+    }
+
+    const notification = await Notification.findOneAndUpdate(
+      { _id: req.params.id, ...getAudienceFilter(req.user) },
+      { $set: { isRead: true } },
+      { new: true }
+    );
+
+    if (!notification) {
+      return res.status(404).json({ message: 'Notification not found' });
+    }
+
+    return res.json({ message: 'Notification updated', notification });
+  } catch (error) {
+    console.error('Mark notification read error:', error);
+    return res.status(500).json({ message: 'Failed to update notification' });
+  }
+});
+
+router.post('/:id/read', auth, async (req, res) => {
   try {
     if (!isDatabaseReady()) {
       return res.status(404).json({ message: 'Notification not found' });
