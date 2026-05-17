@@ -17509,6 +17509,20 @@ main,
   .admin-forecast-kpis strong {
     word-break: break-word;
   }
+
+  .muwas-assistant {
+    display: grid !important;
+    position: fixed !important;
+    right: max(10px, env(safe-area-inset-right)) !important;
+    bottom: calc(86px + env(safe-area-inset-bottom)) !important;
+    z-index: 9999 !important;
+  }
+
+  .muwas-assistant__toggle {
+    display: inline-flex !important;
+    width: 50px !important;
+    height: 50px !important;
+  }
 }
 
 @media (max-width: 520px) {
@@ -17566,6 +17580,44 @@ main,
 
 .profile-page--unified .profile-detail__value {
   word-break: break-word;
+}
+
+.muwas-header__circle-avatar {
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  object-fit: cover;
+  border: 1px solid rgba(255, 255, 255, 0.55);
+}
+
+/* Unified strip color theme (match Contact page strips) */
+.products-reference-strip,
+.home-market__proof-strip,
+.contact-luxe-final,
+.global-cta-strip {
+  background: linear-gradient(90deg, #cb2600 0%, #ff4f00 58%, #d82200 100%) !important;
+  color: #fff !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+.contact-luxe-strip,
+.global-info-strip {
+  background: #121212 !important;
+  border-color: #232323 !important;
+}
+
+.contact-luxe-strip strong,
+.global-info-strip strong,
+.products-reference-strip strong,
+.home-market__proof-strip strong {
+  color: #ff7c2a !important;
+}
+
+.contact-luxe-strip span,
+.global-info-strip span,
+.products-reference-strip p,
+.home-market__proof-strip p {
+  color: #fff !important;
 }
 
 .profile-page--unified .profile-form__row {

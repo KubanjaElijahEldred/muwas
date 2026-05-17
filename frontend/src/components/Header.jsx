@@ -233,7 +233,15 @@ const Header = () => {
                 aria-label="Open profile"
                 title="Open profile"
               >
-                <UserRound size={18} strokeWidth={1.9} />
+                {user?.profileImage ? (
+                  <img
+                    src={user.profileImage}
+                    alt="Profile"
+                    className="muwas-header__circle-avatar"
+                  />
+                ) : (
+                  <UserRound size={18} strokeWidth={1.9} />
+                )}
               </Link>
             )}
             <a
