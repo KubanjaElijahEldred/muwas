@@ -29,6 +29,7 @@ import {
   Wallet,
   X,
   Megaphone,
+  Star,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { formatLabel, formatPrice } from '../utils/productPresentation';
@@ -46,6 +47,7 @@ const adminNavigationItems = [
   { id: 'payments', label: 'Payments', hint: 'Payment tracking', icon: Wallet },
   { id: 'accounts', label: 'Accounts', hint: 'User accounts', icon: Users },
   { id: 'broadcast', label: 'Broadcast', hint: 'Send updates', icon: Megaphone },
+  { id: 'feedback', label: 'Feedback', hint: 'Ratings and reviews', icon: Star },
   { id: 'products', label: 'Product Catalog', hint: 'Stock and pricing', icon: Store },
   { id: 'contacts', label: 'Requests', hint: 'Messages and tours', icon: Bell },
   { id: 'analytics', label: 'Reports & Analytics', hint: 'Business intelligence', icon: BarChart3 },
@@ -217,6 +219,7 @@ const AdminDashboard = () => {
   const [users, setUsers] = useState([]);
   const [products, setProducts] = useState([]);
   const [contacts, setContacts] = useState([]);
+  const [feedback, setFeedback] = useState([]);
   const [notice, setNotice] = useState({ type: '', text: '' });
   const [editingProductId, setEditingProductId] = useState('');
   const [productForm, setProductForm] = useState(createEmptyProductForm());
@@ -314,11 +317,12 @@ const AdminDashboard = () => {
     }
 
     try {
-      const [ordersResult, productsResult, contactsResult, usersResult] = await Promise.allSettled([
+      const [ordersResult, productsResult, contactsResult, usersResult, feedbackResult] = await Promise.allSettled([
         api.get('/orders?limit=200'),
         api.get('/products?limit=200'),
         api.get('/contact?limit=200'),
         api.get('/auth/users?limit=200'),
+        api.get('/feedback?limit=200'),
       ]);
 
       const nextOrders =
@@ -337,17 +341,23 @@ const AdminDashboard = () => {
         usersResult.status === 'fulfilled'
           ? usersResult.value?.data?.users || []
           : [];
+      const nextFeedback =
+        feedbackResult.status === 'fulfilled'
+          ? feedbackResult.value?.data?.feedback || []
+          : [];
 
       const failedSegments = [];
       if (ordersResult.status === 'rejected') failedSegments.push('orders');
       if (productsResult.status === 'rejected') failedSegments.push('products');
       if (contactsResult.status === 'rejected') failedSegments.push('contacts');
       if (usersResult.status === 'rejected') failedSegments.push('users');
+      if (feedbackResult.status === 'rejected') failedSegments.push('feedback');
 
       setOrders(nextOrders);
       setProducts(nextProducts);
       setContacts(nextContacts);
       setUsers(nextUsers);
+      setFeedback(nextFeedback);
       primeOrderDrafts(nextOrders);
       primeContactDrafts(nextContacts);
       primeUserDrafts(nextUsers);
@@ -461,6 +471,27 @@ const AdminDashboard = () => {
       return searchable.includes(searchQuery);
     });
   }, [contacts, searchQuery]);
+
+  const filteredFeedback = useMemo(() => {
+    if (!searchQuery) {
+      return feedback;
+    }
+
+    return feedback.filter((item) => {
+      const searchable = [
+        item.sourceLabel,
+        item.comment,
+        item.userId?.name,
+        item.userId?.email,
+        item.orderId?.orderNumber,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+
+      return searchable.includes(searchQuery);
+    });
+  }, [feedback, searchQuery]);
 
   const pendingRevenue = useMemo(
     () =>
@@ -2061,6 +2092,44 @@ th{background:#f4f4f4}
                 </button>
               </div>
             </form>
+          </section>
+        )}
+
+        {activeTab === 'feedback' && (
+          <section className="admin-panel">
+            <div className="admin-panel__heading">
+              <h2>Customer Feedback</h2>
+              <span>Ratings after payment with account source</span>
+            </div>
+
+            {filteredFeedback.length === 0 ? (
+              <p className="admin-empty">No feedback submitted yet.</p>
+            ) : (
+              <div className="admin-table-wrapper">
+                <table className="admin-table">
+                  <thead>
+                    <tr>
+                      <th>Source</th>
+                      <th>Rating</th>
+                      <th>Comment</th>
+                      <th>Order</th>
+                      <th>Created</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredFeedback.map((item) => (
+                      <tr key={item._id}>
+                        <td>{item.sourceLabel || item.userId?.email || 'Unknown'}</td>
+                        <td>{'★'.repeat(Number(item.rating || 0))}</td>
+                        <td>{item.comment || '-'}</td>
+                        <td>{item.orderId?.orderNumber || '-'}</td>
+                        <td>{new Date(item.createdAt).toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </section>
         )}
 

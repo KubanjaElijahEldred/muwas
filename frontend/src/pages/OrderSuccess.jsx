@@ -1,11 +1,17 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import { Link, Navigate, useLocation } from 'react-router-dom';
-import { Check, Heart, PackageCheck, Truck } from 'lucide-react';
+import { Check, Heart, PackageCheck, Star, Truck } from 'lucide-react';
 import { formatPrice } from '../utils/productPresentation';
+import { useAuth } from '../contexts/AuthContext';
 
 const OrderSuccess = () => {
   const location = useLocation();
   const state = location.state;
+  const { api } = useAuth();
+  const [rating, setRating] = useState(0);
+  const [comment, setComment] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [feedbackState, setFeedbackState] = useState({ type: '', message: '' });
 
   if (!state?.order) {
     return <Navigate to="/orders" replace />;
@@ -18,6 +24,34 @@ const OrderSuccess = () => {
     shippingAddress = {},
     paymentLabel = 'Mobile Money',
   } = state;
+  const orderId = order?._id || '';
+  const stars = useMemo(() => [1, 2, 3, 4, 5], []);
+
+  const handleFeedbackSubmit = async (event) => {
+    event.preventDefault();
+    if (rating < 1) {
+      setFeedbackState({ type: 'error', message: 'Please select a rating before submitting.' });
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      await api.post('/feedback', {
+        orderId,
+        rating,
+        comment,
+        source: 'order-success',
+      });
+      setFeedbackState({ type: 'success', message: 'Thanks. Your feedback has been sent to the Muwas admin team.' });
+    } catch (error) {
+      setFeedbackState({
+        type: 'error',
+        message: error?.response?.data?.message || 'Failed to submit feedback. Please try again.',
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <div className="order-success-page">
@@ -135,6 +169,35 @@ const OrderSuccess = () => {
           </span>
           <h2>We&apos;d love your feedback!</h2>
           <p>How was your shopping experience?</p>
+          <form className="order-feedback-form" onSubmit={handleFeedbackSubmit}>
+            <div className="order-feedback-stars" role="radiogroup" aria-label="Rate your experience">
+              {stars.map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  className={value <= rating ? 'is-active' : ''}
+                  aria-label={`Rate ${value} star${value > 1 ? 's' : ''}`}
+                  onClick={() => setRating(value)}
+                >
+                  <Star size={18} fill={value <= rating ? 'currentColor' : 'none'} />
+                </button>
+              ))}
+            </div>
+            <textarea
+              value={comment}
+              onChange={(event) => setComment(event.target.value)}
+              placeholder="Tell us what went well and what we should improve."
+              maxLength={1200}
+            />
+            <button type="submit" disabled={submitting}>
+              {submitting ? 'Submitting...' : 'Submit Feedback'}
+            </button>
+            {feedbackState.message && (
+              <small className={feedbackState.type === 'error' ? 'is-error' : 'is-success'}>
+                {feedbackState.message}
+              </small>
+            )}
+          </form>
         </section>
       </div>
     </div>

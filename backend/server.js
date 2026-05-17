@@ -14,6 +14,7 @@ const orderRoutes = require('./routes/orders');
 const contactRoutes = require('./routes/contact');
 const wholesaleRoutes = require('./routes/wholesale');
 const notificationRoutes = require('./routes/notifications');
+const feedbackRoutes = require('./routes/feedback');
 const { ensureDefaultCatalog } = require('./services/bootstrapCatalog');
 const { ensureDefaultAdmin } = require('./services/bootstrapAdmin');
 
@@ -150,6 +151,7 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/wholesale', wholesaleRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/feedback', feedbackRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({

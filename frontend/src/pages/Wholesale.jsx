@@ -59,7 +59,7 @@ const Wholesale = () => {
   const fetchProducts = async () => {
     try {
       setCatalogError('');
-      const response = await api.get('/products');
+      const response = await api.get('/wholesale?limit=200&includePagination=false');
       const data = response.data || {};
 
       if (Array.isArray(data.products) && data.products.length > 0) {

@@ -6,7 +6,7 @@ const router = express.Router();
 
 router.get('/', auth, authorize('wholesale', 'admin'), async (req, res) => {
   try {
-    const { category, limit, page = 1 } = req.query;
+    const { category, limit, page = 1, includePagination = 'true' } = req.query;
     const filter = { 
       isActive: true,
       wholesalePrice: { $exists: true, $gt: 0 }
@@ -14,16 +14,29 @@ router.get('/', auth, authorize('wholesale', 'admin'), async (req, res) => {
     
     if (category) filter.category = category;
 
-    const limitNum = limit ? parseInt(limit) : 20;
+    const limitNum = limit ? parseInt(limit, 10) : 60;
     const skip = (page - 1) * limitNum;
 
-    const products = await Product.find(filter)
+    const productsQuery = Product.find(filter)
       .select('name description shortDescription price wholesalePrice images category abv volume stock')
       .sort({ createdAt: -1 })
       .limit(limitNum)
-      .skip(skip);
+      .skip(skip)
+      .lean();
 
-    const total = await Product.countDocuments(filter);
+    const shouldIncludePagination =
+      String(includePagination).toLowerCase() !== 'false' &&
+      String(includePagination).toLowerCase() !== '0';
+
+    if (!shouldIncludePagination) {
+      const products = await productsQuery;
+      return res.json({ products });
+    }
+
+    const [products, total] = await Promise.all([
+      productsQuery,
+      Product.countDocuments(filter),
+    ]);
 
     res.json({
       products,
