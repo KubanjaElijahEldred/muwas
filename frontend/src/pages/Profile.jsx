@@ -24,6 +24,7 @@ import {
   ShoppingBag,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { showSuccessToast } from '../utils/toast';
 
 const Profile = () => {
   const { user, updateProfile } = useAuth();
@@ -170,6 +171,7 @@ const Profile = () => {
 
       if (result.success) {
         setMessage('Profile updated successfully!');
+        showSuccessToast('Changes saved');
         setIsEditing(false);
         setProfileImage(null);
       } else {
