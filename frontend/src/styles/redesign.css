@@ -121,7 +121,7 @@
 
 .home-market__hero-copy > span {
   font-size: clamp(1.05rem, 1.3vw, 1.45rem);
-  color: #111;
+  color: #ffffff !important;
   max-width: 470px;
   display: block;
 }
