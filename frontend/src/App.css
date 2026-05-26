@@ -16914,9 +16914,9 @@ main,
   display: grid;
   place-items: center;
   background:
-    radial-gradient(circle at 30% 20%, rgba(255, 122, 0, 0.22), transparent 52%),
-    radial-gradient(circle at 70% 75%, rgba(240, 20, 47, 0.16), transparent 55%),
-    linear-gradient(180deg, #fff7f1 0%, #fff 100%);
+    radial-gradient(circle at 30% 20%, rgba(255, 193, 133, 0.35), transparent 52%),
+    radial-gradient(circle at 70% 75%, rgba(255, 109, 0, 0.24), transparent 55%),
+    linear-gradient(180deg, #ff8a00 0%, #ff6a00 100%);
 }
 
 .muwas-splash__ambient {
