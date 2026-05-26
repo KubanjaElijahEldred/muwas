@@ -56,6 +56,7 @@ const SiteAssistant = ({ siteProducts = [] }) => {
   });
   const dragStartRef = useRef(null);
   const draggedRef = useRef(false);
+  const getTouchPoint = (event) => event.touches?.[0] || event.changedTouches?.[0] || null;
 
   const sendMessage = (question) => {
     const query = question.trim();
@@ -136,6 +137,32 @@ const SiteAssistant = ({ siteProducts = [] }) => {
     dragStartRef.current = null;
   };
 
+  const handleTouchStart = (event) => {
+    const point = getTouchPoint(event);
+    if (!point) {
+      return;
+    }
+    handleDragStart({
+      target: event.target,
+      currentTarget: event.currentTarget,
+      pointerId: 'touch',
+      clientX: point.clientX,
+      clientY: point.clientY,
+    });
+  };
+
+  const handleTouchMove = (event) => {
+    const point = getTouchPoint(event);
+    if (!point) {
+      return;
+    }
+    handleDragMove({
+      pointerId: 'touch',
+      clientX: point.clientX,
+      clientY: point.clientY,
+    });
+  };
+
   const handleToggleClick = () => {
     if (draggedRef.current) {
       draggedRef.current = false;
@@ -186,6 +213,10 @@ const SiteAssistant = ({ siteProducts = [] }) => {
             onPointerMove={handleDragMove}
             onPointerUp={handleDragEnd}
             onPointerCancel={handleDragEnd}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleDragEnd}
+            onTouchCancel={handleDragEnd}
           >
             <div className="muwas-assistant__title">
               <span className="muwas-assistant__badge">
@@ -275,6 +306,10 @@ const SiteAssistant = ({ siteProducts = [] }) => {
         onPointerMove={handleDragMove}
         onPointerUp={handleDragEnd}
         onPointerCancel={handleDragEnd}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleDragEnd}
+        onTouchCancel={handleDragEnd}
       >
         <Bot size={19} strokeWidth={1.9} />
       </button>
