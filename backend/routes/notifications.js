@@ -8,6 +8,7 @@ const router = express.Router();
 const isDatabaseReady = () => mongoose.connection.readyState === 1;
 
 const isObjectId = (value) => mongoose.Types.ObjectId.isValid(String(value || ''));
+const USER_PERSONAL_SOURCES = ['account-created', 'admin-created-account', 'payment-confirmed'];
 
 const getAudienceFilter = (user) => {
   const recipientCondition = isObjectId(user?._id) ? [{ recipientId: user._id }] : [];
@@ -22,11 +23,17 @@ const getAudienceFilter = (user) => {
     };
   }
 
+  if (recipientCondition.length === 0) {
+    return { _id: null };
+  }
+
   return {
     $or: [
-      { audience: 'all' },
-      { audience: 'user' },
-      ...recipientCondition,
+      { audience: 'all', 'metadata.source': 'admin-broadcast' },
+      {
+        recipientId: user._id,
+        'metadata.source': { $in: USER_PERSONAL_SOURCES },
+      },
     ],
   };
 };
@@ -81,6 +88,48 @@ router.post('/read-all', auth, async (req, res) => {
   }
 });
 
+router.post('/broadcast', auth, authorize('admin'), async (req, res) => {
+  try {
+    const title = String(req.body?.title || '').trim();
+    const message = String(req.body?.message || '').trim();
+    const requestedType = String(req.body?.type || 'info').trim().toLowerCase();
+    const allowedTypes = new Set(['info', 'success', 'warning', 'error']);
+    const type = allowedTypes.has(requestedType) ? requestedType : 'info';
+
+    if (!title || !message) {
+      return res.status(400).json({ message: 'Title and message are required.' });
+    }
+
+    if (!isDatabaseReady()) {
+      return res.status(503).json({ message: 'Database is not ready.' });
+    }
+
+    await createGlobalNotification({
+      title,
+      message,
+      type,
+      metadata: {
+        source: 'admin-broadcast',
+        sourceLabel: 'Muwas Admin',
+        senderId: req.user?._id,
+      },
+    });
+
+    return res.status(201).json({ message: 'Broadcast sent successfully.' });
+  } catch (error) {
+    console.error('Broadcast notification error:', error);
+
+    if (error?.name === 'ValidationError') {
+      const firstError = Object.values(error.errors || {})[0];
+      return res.status(400).json({
+        message: firstError?.message || 'Invalid broadcast payload.',
+      });
+    }
+
+    return res.status(500).json({ message: 'Failed to send broadcast notification' });
+  }
+});
+
 router.patch('/:id/read', auth, async (req, res) => {
   try {
     if (!isDatabaseReady()) {
@@ -124,38 +173,6 @@ router.post('/:id/read', auth, async (req, res) => {
   } catch (error) {
     console.error('Mark notification read error:', error);
     return res.status(500).json({ message: 'Failed to update notification' });
-  }
-});
-
-router.post('/broadcast', auth, authorize('admin'), async (req, res) => {
-  try {
-    const title = String(req.body?.title || '').trim();
-    const message = String(req.body?.message || '').trim();
-    const type = String(req.body?.type || 'info').trim();
-
-    if (!title || !message) {
-      return res.status(400).json({ message: 'Title and message are required.' });
-    }
-
-    if (!isDatabaseReady()) {
-      return res.status(503).json({ message: 'Database is not ready.' });
-    }
-
-    await createGlobalNotification({
-      title,
-      message,
-      type,
-      metadata: {
-        source: 'admin-broadcast',
-        sourceLabel: 'Muwas Admin',
-        senderId: req.user?._id,
-      },
-    });
-
-    return res.status(201).json({ message: 'Broadcast sent successfully.' });
-  } catch (error) {
-    console.error('Broadcast notification error:', error);
-    return res.status(500).json({ message: 'Failed to send broadcast notification' });
   }
 });
 

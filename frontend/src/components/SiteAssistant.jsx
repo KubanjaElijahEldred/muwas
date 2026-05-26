@@ -84,7 +84,8 @@ const SiteAssistant = ({ siteProducts = [] }) => {
   };
 
   const handleDragStart = (event) => {
-    if (event.target.closest('button')) {
+    const clickedButton = event.target.closest('button');
+    if (clickedButton && clickedButton !== event.currentTarget) {
       return;
     }
 
@@ -165,6 +166,7 @@ const SiteAssistant = ({ siteProducts = [] }) => {
   return (
     <div
       className={`muwas-assistant ${isOpen ? 'is-open' : ''}`}
+      data-positioned={position ? 'true' : 'false'}
       style={
         position
           ? {

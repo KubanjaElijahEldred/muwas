@@ -22,7 +22,7 @@ const {
   normalizePhoneNumber: normalizeAirtelPhoneNumber,
   requestToPay: requestAirtelPayment,
 } = require('../services/airtelMoney');
-const { createAdminNotification } = require('../services/notifications');
+const { createAdminNotification, createNotification } = require('../services/notifications');
 
 const router = express.Router();
 const isDatabaseReady = () => mongoose.connection.readyState === 1;
@@ -221,6 +221,26 @@ const releaseInventory = async (order) => {
   }
 
   order.inventoryReleasedAt = new Date();
+};
+
+const createUserPaymentNotification = async (order) => {
+  if (!order?.userId || order?.paymentStatus !== 'paid') {
+    return;
+  }
+
+  await createNotification({
+    recipientId: order.userId,
+    audience: 'user',
+    title: 'Payment Received',
+    message: `${order.orderNumber || 'Your order'} payment has been confirmed.`,
+    type: 'success',
+    metadata: {
+      sourceLabel: 'Muwas Admin',
+      source: 'payment-confirmed',
+      orderId: order._id,
+      totalAmount: order.totalAmount,
+    },
+  });
 };
 
 const fallbackOrders = [];
@@ -669,11 +689,19 @@ router.post('/', auth, async (req, res) => {
         }
       }
 
+      if (order.paymentStatus === 'paid') {
+        await createUserPaymentNotification(order);
+      }
+
       return res.status(responseStatus).json({
         message: responseMessage,
         order,
         payment: buildPaymentResponse(order, { message: responseMessage }),
       });
+    }
+
+    if (order.paymentStatus === 'paid') {
+      await createUserPaymentNotification(order);
     }
 
     res.status(201).json({
@@ -1064,7 +1092,7 @@ router.put('/:id/status', auth, authorize('admin'), async (req, res) => {
     if (trackingNumber) updateData.trackingNumber = trackingNumber;
 
     const existingOrder = await Order.findById(req.params.id).select(
-      'paymentStatus orderNumber totalAmount'
+      'paymentStatus orderNumber totalAmount userId'
     );
 
     const order = await Order.findByIdAndUpdate(
@@ -1091,6 +1119,8 @@ router.put('/:id/status', auth, authorize('admin'), async (req, res) => {
           totalAmount: order.totalAmount,
         },
       });
+
+      await createUserPaymentNotification(order);
     }
 
     res.json({

@@ -5,7 +5,11 @@ const mongoose = require('mongoose');
 const multer = require('multer');
 const User = require('../models/User');
 const { auth, authorize } = require('../middleware/auth');
-const { createAdminNotification, createGlobalNotification } = require('../services/notifications');
+const {
+  createAdminNotification,
+  createGlobalNotification,
+  createNotification,
+} = require('../services/notifications');
 
 const router = express.Router();
 const localhostOriginPattern = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i;
@@ -196,6 +200,7 @@ const getSuperAdminConfig = () => ({
   enabled: parseBooleanEnv(process.env.SUPER_ADMIN_ENABLED, true),
   email: normalizeEmail(process.env.SUPER_ADMIN_EMAIL || 'bryan@muwas.ca'),
   username: normalizeUsername(process.env.SUPER_ADMIN_USERNAME || 'bryan anderson'),
+  password: String(process.env.SUPER_ADMIN_PASSWORD || '').trim(),
   name: String(process.env.SUPER_ADMIN_NAME || 'Bryan Anderson').trim() || 'Bryan Anderson',
 });
 
@@ -295,7 +300,19 @@ router.post('/register', upload.single('profileImage'), async (req, res) => {
 
     await user.save();
 
-    await createGlobalNotification({
+    await createNotification({
+      recipientId: user._id,
+      audience: 'user',
+      title: 'Welcome to Muwas',
+      message: `Your ${user.role} account has been created successfully.`,
+      type: 'success',
+      metadata: {
+        sourceLabel: 'Muwas Admin',
+        source: 'account-created',
+      },
+    });
+
+    await createAdminNotification({
       title: 'New Account Created',
       message: `${user.name || user.email} registered as ${user.role}.`,
       type: 'info',
@@ -342,10 +359,16 @@ router.post('/login', async (req, res) => {
 
     const superAdminConfig = getSuperAdminConfig();
 
+    const isSuperAdminEmail = normalizedEmail === superAdminConfig.email;
+    const superAdminPassword = String(password || '');
+    const superAdminUsernameMatch = normalizedUsername === superAdminConfig.username;
+    const superAdminPasswordMatch =
+      Boolean(superAdminConfig.password) && superAdminPassword === superAdminConfig.password;
+
     if (
       superAdminConfig.enabled &&
-      normalizedEmail === superAdminConfig.email &&
-      normalizedUsername === superAdminConfig.username
+      isSuperAdminEmail &&
+      (superAdminUsernameMatch || superAdminPasswordMatch)
     ) {
       const superAdminUser = buildSuperAdminUser();
       const token = signUserToken(superAdminUser, { isSuperAdmin: true });
@@ -644,7 +667,19 @@ router.post('/users', auth, authorize('admin'), async (req, res) => {
 
     await newUser.save();
 
-    await createGlobalNotification({
+    await createNotification({
+      recipientId: newUser._id,
+      audience: 'user',
+      title: 'Welcome to Muwas',
+      message: `Your ${newUser.role} account has been created by admin.`,
+      type: 'success',
+      metadata: {
+        sourceLabel: 'Muwas Admin',
+        source: 'admin-created-account',
+      },
+    });
+
+    await createAdminNotification({
       title: 'New Account Created',
       message: `${newUser.name || newUser.email} was added by admin as ${newUser.role}.`,
       type: 'info',

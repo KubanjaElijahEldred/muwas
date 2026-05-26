@@ -102,6 +102,20 @@ const Header = () => {
   }, [notificationsEnabled]);
 
   React.useEffect(() => {
+    // Prevent notification state from leaking across account switches.
+    setIsNotificationsOpen(false);
+    setNotifications([]);
+    setUnreadCount(0);
+    unreadCountRef.current = 0;
+    hasLoadedNotificationsRef.current = false;
+
+    if (!isAuthenticated) {
+      notificationsRequestInFlightRef.current = false;
+      setNotificationsLoading(false);
+    }
+  }, [isAuthenticated, user?._id]);
+
+  React.useEffect(() => {
     if (!notificationsEnabled) {
       return;
     }
@@ -128,12 +142,23 @@ const Header = () => {
 
     if (nextOpen && notificationsEnabledRef.current) {
       await fetchNotifications({ silent: false });
+      if (unreadCountRef.current > 0) {
+        await markAllNotificationsRead();
+      }
     }
   };
 
   const markNotificationRead = async (notificationId) => {
     try {
-      await api.patch(`/notifications/${notificationId}/read`);
+      try {
+        await api.patch(`/notifications/${notificationId}/read`);
+      } catch (error) {
+        if (error?.response?.status === 405) {
+          await api.post(`/notifications/${notificationId}/read`);
+        } else {
+          throw error;
+        }
+      }
       setNotifications((current) =>
         current.map((entry) =>
           entry._id === notificationId ? { ...entry, isRead: true } : entry
@@ -188,7 +213,9 @@ const Header = () => {
                   aria-label="Notifications"
                 >
                   <Bell size={18} strokeWidth={1.9} />
-                  {unreadCount > 0 && <em className="muwas-notifications__count">{unreadCount}</em>}
+                  {unreadCount > 0 && (
+                    <em className="muwas-notifications__count">{unreadCount}</em>
+                  )}
                 </button>
                 {isNotificationsOpen && notificationsEnabled && (
                   <div className="muwas-notifications__menu">
@@ -299,7 +326,9 @@ const Header = () => {
                     aria-label="Notifications"
                   >
                     <Bell size={19} strokeWidth={1.9} />
-                    {unreadCount > 0 && <em className="muwas-notifications__count">{unreadCount}</em>}
+                    {unreadCount > 0 && (
+                      <em className="muwas-notifications__count">{unreadCount}</em>
+                    )}
                   </button>
 
                   {isNotificationsOpen && notificationsEnabled && (

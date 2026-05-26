@@ -17520,6 +17520,11 @@ main,
     z-index: 9999 !important;
   }
 
+  .muwas-assistant[data-positioned='true'] {
+    right: auto !important;
+    bottom: auto !important;
+  }
+
   .muwas-assistant__toggle {
     display: inline-flex !important;
     width: 50px !important;
